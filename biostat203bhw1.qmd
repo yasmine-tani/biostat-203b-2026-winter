@@ -2,7 +2,7 @@
 title: "biostat203hw1"
 format: html
 editor: visual
-author: Yasmine Tani
+author: Yasmine Tani; UID 406579988
 editor_options: 
   chunk_output_type: inline
 ---
@@ -311,5 +311,31 @@ ran 'history \| tail' in terminal . it tells me the very last lines of the list 
 Finished cloning the book!
 
 ![](images/clipboard-1533758585.png)
+
+------------------------------------------------------------------------
+
+## Q6- AI Assistant
+
+When working, I use Gemini because I have the premium version offered to students for free for a year. I was using Gemini 3. I usually utilize Gemini when I am stuck and I want the to give me a hint on which direction to proceed or if I am getting errors and cannot seem to fix it on my own. The issues I often run into with Gemini specifically are when it offers suggestions that I explicitly stated to avoid and when it refers to older photos to help me and ignores the most recent photo I just sent.
+
+![](images/clipboard-4165078785.png)
+
+In example 1, I asked for help on how to build the loop for the lines, to which it gave me the incorrect direction and I was left with... 0 lines!
+
+![](images/clipboard-1438045743.png)
+
+In error 2, I sent it a screenshot of my uncompressed vs compressed times I got in my output and it gave me the incorrect numbers that did not align!
+
+![](images/clipboard-69083325.png)
+
+In example 3, it kept pushing me to utilize gzcat instead of gzip, which the homework had clarified to use, even when I emphasized I wanted to use gzip.
+
+![](images/clipboard-3061746874.png)
+
+This is example 4, these are my most frustrating style of errors. I will ask for help on direction, like here I said I have never used a text editor please help me implement that. It instead suggested I drop the text editor entirely!
+
+![](images/clipboard-53108800.png)
+
+And here, for example 5, it again suggested that no worries, just typing in R is a text editor in and of itself!
 
 ------------------------------------------------------------------------
