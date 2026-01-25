@@ -182,4 +182,28 @@ done
 
 Ok, so here we can clearly see that I was right :) Elizabeth was the most mentioned!
 
-\(2\)
+\(2\) The difference between
+
+```{bash}
+echo 'hello, world' > test1.txt
+```
+
+and
+
+```{bash}
+echo 'hello, world' >> test2.txt
+```
+
+The first one has a single arrow which means *overwrite*, so if test1.txt does not exist, it creates it. But, if it already exists, it **erases everything inside it** and replaces it with this text.
+
+For the double arrow, this means *append*. So, if test2.txt does not exist, it creates it. If it already exists, it adds this text to the bottom of the file but keeps the rest of the text safe.
+
+\(3\) Ok so I use the vi editor in my terminal and my output was:
+
+Release date: May 9, 2013 \[eBook #42671\] Most recently updated: January 25, 2026
+
+Language: English
+
+The \$1 represents the filename (for us was pg42671.txt), \$2 was the end line number (20) and \$3 was the number of lines to display (5). The first line tells the computer which interpreter to use to run the code (used the standard shell).
+
+------------------------------------------------------------------------

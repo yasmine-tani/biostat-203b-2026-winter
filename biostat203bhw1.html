@@ -403,17 +403,17 @@ drwxr-xr-x@ 11 yasminetani  staff    352 Jan 24 23:49 icu
 <span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a><span class="bu">time</span> wc <span class="at">-l</span> labevents.csv</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>-rw-r--r--@ 1 yasminetani  staff   2.4G Oct  3  2024 /Users/yasminetani/mimic/hosp/labevents.csv.gz
--rw-r--r--@ 1 yasminetani  staff    17G Jan 25 13:44 labevents.csv
+-rw-r--r--@ 1 yasminetani  staff    17G Jan 25 14:17 labevents.csv
  158374765
 
-real    0m15.151s
-user    0m23.478s
-sys 0m1.683s
+real    0m14.973s
+user    0m23.388s
+sys 0m1.610s
  158374765 labevents.csv
 
-real    0m14.904s
-user    0m13.141s
-sys 0m1.512s</code></pre>
+real    0m15.178s
+user    0m13.358s
+sys 0m1.508s</code></pre>
 </div>
 </div>
 <div class="cell">
@@ -451,7 +451,21 @@ Darcy:
 </div>
 </div>
 <p>Ok, so here we can clearly see that I was right :) Elizabeth was the most mentioned!</p>
-<p>(2)</p>
+<p>(2) The difference between</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">'hello, world'</span> <span class="op">&gt;</span> test1.txt</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>and</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">'hello, world'</span> <span class="op">&gt;&gt;</span> test2.txt</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>The first one has a single arrow which means <em>overwrite</em>, so if test1.txt does not exist, it creates it. But, if it already exists, it <strong>erases everything inside it</strong> and replaces it with this text.</p>
+<p>For the double arrow, this means <em>append</em>. So, if test2.txt does not exist, it creates it. If it already exists, it adds this text to the bottom of the file but keeps the rest of the text safe.</p>
+<p>(3) Ok so I use the vi editor in my terminal and my output was:</p>
+<p>Release date: May 9, 2013 [eBook #42671] Most recently updated: January 25, 2026</p>
+<p>Language: English</p>
+<p>The $1 represents the filename (for us was pg42671.txt), $2 was the end line number (20) and $3 was the number of lines to display (5). The first line tells the computer which interpreter to use to run the code (used the standard shell).</p>
+<hr>
 </section>
 
 </main>
