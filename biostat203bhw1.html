@@ -134,6 +134,94 @@ loaded via a namespace (and not attached):
 </div>
 <p>Q1- completed</p>
 <p>Q2 - completed</p>
+<p>Q3:</p>
+<p>(1)</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">#content of mimic folder</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> <span class="at">-l</span> ~/mimic/</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>total 48
+-rw-r--r--@  1 yasminetani  staff  15199 Oct 10  2024 CHANGELOG.txt
+drwxr-xr-x@ 24 yasminetani  staff    768 Jan 24 23:49 hosp
+drwxr-xr-x@ 11 yasminetani  staff    352 Jan 24 23:49 icu
+-rw-r--r--@  1 yasminetani  staff   2518 Oct 10  2024 LICENSE.txt
+-rw-r--r--@  1 yasminetani  staff   2884 Oct 11  2024 SHA256SUMS.txt</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">#content of hops folder inside mimic</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> <span class="at">-l</span> ~/mimic/hosp</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>total 12403640
+-rw-r--r--@ 1 yasminetani  staff    19928140 Jun 24  2024 admissions.csv.gz
+-rw-r--r--@ 1 yasminetani  staff      427554 Apr 12  2024 d_hcpcs.csv.gz
+-rw-r--r--@ 1 yasminetani  staff      876360 Apr 12  2024 d_icd_diagnoses.csv.gz
+-rw-r--r--@ 1 yasminetani  staff      589186 Apr 12  2024 d_icd_procedures.csv.gz
+-rw-r--r--@ 1 yasminetani  staff       13169 Oct  3  2024 d_labitems.csv.gz
+-rw-r--r--@ 1 yasminetani  staff    33564802 Oct  3  2024 diagnoses_icd.csv.gz
+-rw-r--r--@ 1 yasminetani  staff     9743908 Oct  3  2024 drgcodes.csv.gz
+-rw-r--r--@ 1 yasminetani  staff   748158322 Apr 13  2024 emar_detail.csv.gz
+-rw-r--r--@ 1 yasminetani  staff   811305629 Apr 12  2024 emar.csv.gz
+-rw-r--r--@ 1 yasminetani  staff     2162335 Apr 12  2024 hcpcsevents.csv.gz
+-rw-r--r--@ 1 yasminetani  staff  2592909134 Oct  3  2024 labevents.csv.gz
+-rw-r--r--@ 1 yasminetani  staff   117644075 Oct  3  2024 microbiologyevents.csv.gz
+-rw-r--r--@ 1 yasminetani  staff    44069351 Oct  3  2024 omr.csv.gz
+-rw-r--r--@ 1 yasminetani  staff     2835586 Apr 12  2024 patients.csv.gz
+-rw-r--r--@ 1 yasminetani  staff   525708076 Apr 12  2024 pharmacy.csv.gz
+-rw-r--r--@ 1 yasminetani  staff    55267894 Apr 12  2024 poe_detail.csv.gz
+-rw-r--r--@ 1 yasminetani  staff   666594177 Apr 12  2024 poe.csv.gz
+-rw-r--r--@ 1 yasminetani  staff   606298611 Apr 12  2024 prescriptions.csv.gz
+-rw-r--r--@ 1 yasminetani  staff     7777324 Apr 12  2024 procedures_icd.csv.gz
+-rw-r--r--@ 1 yasminetani  staff      127330 Apr 12  2024 provider.csv.gz
+-rw-r--r--@ 1 yasminetani  staff     8569241 Apr 12  2024 services.csv.gz
+-rw-r--r--@ 1 yasminetani  staff    46185771 Oct  3  2024 transfers.csv.gz</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co">#mimic of icu folder inside mimic</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> <span class="at">-l</span> ~/mimic/icu</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>total 8535416
+-rw-r--r--@ 1 yasminetani  staff       41566 Apr 13  2024 caregiver.csv.gz
+-rw-r--r--@ 1 yasminetani  staff  3502392765 Apr 13  2024 chartevents.csv.gz
+-rw-r--r--@ 1 yasminetani  staff       58741 Apr 13  2024 d_items.csv.gz
+-rw-r--r--@ 1 yasminetani  staff    63481196 Apr 13  2024 datetimeevents.csv.gz
+-rw-r--r--@ 1 yasminetani  staff     3342355 Oct  3  2024 icustays.csv.gz
+-rw-r--r--@ 1 yasminetani  staff   311642048 Apr 13  2024 ingredientevents.csv.gz
+-rw-r--r--@ 1 yasminetani  staff   401088206 Apr 13  2024 inputevents.csv.gz
+-rw-r--r--@ 1 yasminetani  staff    49307639 Apr 13  2024 outputevents.csv.gz
+-rw-r--r--@ 1 yasminetani  staff    24096834 Apr 13  2024 procedureevents.csv.gz</code></pre>
+</div>
+</div>
+<p>(2) Why are these .csv.gz files instead of .csv?</p>
+<p>These files are pretty large datasets of patient data wuth over 300,000 patients each with hopsitalization and ICU data as well as demographic data and more. In class, we discussed how this is not large enough to be considered “big data” but that the files still need to be compressed to save storage on our computer and make it so that it does not take days to download (this data already takes 10 hours with the compression).</p>
+<p>(3) Zcat dispalys the uncompressed content of a gzipped file to the terminal (will not since this creates unnecessarily big files). Zless and zmore allow you to scroll through a compressed file page by page without unzipping it (paginating the output) but zmore allows only forward navigation and zless allows backward &amp; forward. zgrep searches for specific patterns/words inside a compressed file without unzipping it.</p>
+<p>(4)</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> datafile <span class="kw">in</span> ~/mimic/hosp/<span class="dt">{a</span><span class="op">,</span><span class="dt">l</span><span class="op">,</span><span class="dt">pa}</span><span class="pp">*</span>.gz</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="cf">do</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ls</span> <span class="at">-l</span> <span class="va">$datafile</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>-rw-r--r--@ 1 yasminetani  staff  19928140 Jun 24  2024 /Users/yasminetani/mimic/hosp/admissions.csv.gz
+-rw-r--r--@ 1 yasminetani  staff  2592909134 Oct  3  2024 /Users/yasminetani/mimic/hosp/labevents.csv.gz
+-rw-r--r--@ 1 yasminetani  staff  2835586 Apr 12  2024 /Users/yasminetani/mimic/hosp/patients.csv.gz</code></pre>
+</div>
+</div>
+<p>Here, the script loops through the mimic hospital files directory that start with ‘a’, ‘l’, or ‘pa’ and end in .gz to ind the appropriate files, Then it executed the ls - l command to display their file details so permissions, owner, size, date of modification, etc.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Display the number of lines in each data file using a similar loop.</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> datafile <span class="kw">in</span> ~/mimic/hosp/<span class="dt">{a</span><span class="op">,</span><span class="dt">l</span><span class="op">,</span><span class="dt">pa}</span><span class="pp">*</span>.gz</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="cf">do</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  <span class="ex">gzcat</span> <span class="va">$datafile</span> <span class="kw">|</span> <span class="fu">wc</span> <span class="at">-l</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="co">#For mac, need to use gzcat</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>  546029
+ 158374765
+  364628</code></pre>
+</div>
+</div>
 
 </main>
 <!-- /main column -->

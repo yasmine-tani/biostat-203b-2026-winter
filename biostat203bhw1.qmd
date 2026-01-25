@@ -14,3 +14,50 @@ sessionInfo()
 Q1- completed
 
 Q2 - completed
+
+Q3:
+
+\(1\)
+
+```{bash}
+#content of mimic folder
+ls -l ~/mimic/
+```
+
+```{bash}
+#content of hops folder inside mimic
+ls -l ~/mimic/hosp
+```
+
+```{bash}
+#mimic of icu folder inside mimic
+ls -l ~/mimic/icu
+```
+
+\(2\) Why are these .csv.gz files instead of .csv?
+
+These files are pretty large datasets of patient data wuth over 300,000 patients each with hopsitalization and ICU data as well as demographic data and more. In class, we discussed how this is not large enough to be considered "big data" but that the files still need to be compressed to save storage on our computer and make it so that it does not take days to download (this data already takes 10 hours with the compression).
+
+\(3\) Zcat dispalys the uncompressed content of a gzipped file to the terminal (will not since this creates unnecessarily big files). Zless and zmore allow you to scroll through a compressed file page by page without unzipping it (paginating the output) but zmore allows only forward navigation and zless allows backward & forward. zgrep searches for specific patterns/words inside a compressed file without unzipping it.
+
+\(4\)
+
+```{bash}
+for datafile in ~/mimic/hosp/{a,l,pa}*.gz
+do
+  ls -l $datafile
+done
+```
+
+Here, the script loops through the mimic hospital files directory that start with 'a', 'l', or 'pa' and end in .gz to ind the appropriate files, Then it executed the ls - l command to display their file details so permissions, owner, size, date of modification, etc.
+
+```{bash}
+#Display the number of lines in each data file using a similar loop.
+for datafile in ~/mimic/hosp/{a,l,pa}*.gz
+do
+  gzcat $datafile | wc -l
+done
+#For mac, need to use gzcat
+```
+
+\(5\) Context for self: The command 'head' is used to display the first few lines of one or more text files directly in the terminal. 'Tail' is to output the last part \[usually last 10 lines\]. 'awk' allows for manipulating and formatting data. 'sort' sorts lines of text in a particular order. 'uniq' reports matching lines from a file.
