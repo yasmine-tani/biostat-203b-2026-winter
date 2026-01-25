@@ -92,6 +92,28 @@ gzcat ~/mimic/hosp/admissions.csv.gz | tail -n +2 | awk -F, '{print $1}' | sort 
 gzcat ~/mimic/hosp/patients.csv.gz | tail -n +2 | wc -l
 ```
 
-Nope.
+Nope. The patients.csv.gz file is a master list of everyone who has been to the hospital even if they were not admitted, which the admissions only contains the admittited patients.
 
 \(6\)
+
+```{bash}
+echo "--- Admission Type ---"
+gzcat ~/mimic/hosp/admissions.csv.gz | tail -n +2 | awk -F, '{print $6}' | sort | uniq -c | sort -nr
+```
+
+```{bash}
+echo "--- Admission Location ---"
+gzcat ~/mimic/hosp/admissions.csv.gz | tail -n +2 | awk -F, '{print $8}' | sort | uniq -c | sort -nr
+```
+
+```{bash}
+echo "--- Insurance ---"
+gzcat ~/mimic/hosp/admissions.csv.gz | tail -n +2 | awk -F, '{print $10}' | sort | uniq -c | sort -nr
+```
+
+```{bash}
+echo "--- Ethnicity/Race ---"
+gzcat ~/mimic/hosp/admissions.csv.gz | tail -n +2 | awk -F, '{print $13}' | sort | uniq -c | sort -nr
+```
+
+\(7\)
