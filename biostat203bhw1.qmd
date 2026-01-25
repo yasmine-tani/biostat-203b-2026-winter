@@ -207,3 +207,101 @@ Language: English
 The \$1 represents the filename (for us was pg42671.txt), \$2 was the end line number (20) and \$3 was the number of lines to display (5). The first line tells the computer which interpreter to use to run the code (used the standard shell).
 
 ------------------------------------------------------------------------
+
+## Q5- More fun with Linux :)
+
+displays calendar of current month:
+
+```{bash}
+cal
+```
+
+displays full calendar for 2026
+
+```{bash}
+cal 2026
+```
+
+displays september 1752:
+
+```{bash}
+cal 9 1752
+```
+
+\^\^\^Here, 11 days are missing... from September 2nd to 14th. (when we switched calendars to Gregorian... super cool!)
+
+shows current date & time zone:
+
+```{bash}
+date
+```
+
+network name of my computer:
+
+```{bash}
+hostname
+```
+
+aka architecture, says if my computer utilizes an intel chip or silicon
+
+```{bash}
+arch
+```
+
+ID card for operating system essentially:
+
+```{bash}
+uname -a
+```
+
+how long the computer has been running since its last restart:
+
+```{bash}
+uptime
+```
+
+my username and terminal session details:
+
+```{bash}
+who am i 
+```
+
+all users currently logged into my machine:
+
+```{bash}
+who
+```
+
+a more detailed 'who', shows what users are doing:
+
+```{bash}
+w
+```
+
+displays my user ID (UID) and group ID (GID) numbers.
+
+```{bash}
+id
+```
+
+last few people who logged into computer (top 10):
+
+```{bash}
+last | head
+```
+
+creates every combination of these word parts! funnnn:
+
+```{bash}
+echo {con,pre}{sent,fer}{s,ed}
+```
+
+tells computer to do nothing for 5 seconds and measures how long that took:
+
+```{bash}
+time sleep 5
+```
+
+ran 'history \| tail' in terminal . it tells me the very last lines of the list of every single command i have typed into that terminal session since i started (useful for future actually).
+
+------------------------------------------------------------------------
