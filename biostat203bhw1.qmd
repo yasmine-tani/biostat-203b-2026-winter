@@ -1,0 +1,341 @@
+---
+title: "biostat203hw1"
+format: html
+editor: visual
+author: Yasmine Tani; UID 406579988
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+sessionInfo()
+```
+
+## Q1- completed
+
+## Q2 - completed
+
+## Q3:
+
+\(1\)
+
+```{bash}
+#content of mimic folder
+ls -l ~/mimic/
+```
+
+```{bash}
+#content of hops folder inside mimic
+ls -l ~/mimic/hosp
+```
+
+```{bash}
+#mimic of icu folder inside mimic
+ls -l ~/mimic/icu
+```
+
+\(2\) Why are these .csv.gz files instead of .csv?
+
+These files are pretty large datasets of patient data wuth over 300,000 patients each with hopsitalization and ICU data as well as demographic data and more. In class, we discussed how this is not large enough to be considered "big data" but that the files still need to be compressed to save storage on our computer and make it so that it does not take days to download (this data already takes 10 hours with the compression).
+
+\(3\) Zcat dispalys the uncompressed content of a gzipped file to the terminal (will not since this creates unnecessarily big files). Zless and zmore allow you to scroll through a compressed file page by page without unzipping it (paginating the output) but zmore allows only forward navigation and zless allows backward & forward. zgrep searches for specific patterns/words inside a compressed file without unzipping it.
+
+\(4\)
+
+```{bash}
+for datafile in ~/mimic/hosp/{a,l,pa}*.gz
+do
+  ls -l $datafile
+done
+```
+
+Here, the script loops through the mimic hospital files directory that start with 'a', 'l', or 'pa' and end in .gz to ind the appropriate files, Then it executed the ls - l command to display their file details so permissions, owner, size, date of modification, etc.
+
+```{bash}
+#Display the number of lines in each data file using a similar loop.
+for datafile in ~/mimic/hosp/{a,l,pa}*.gz
+do
+  gzcat $datafile | wc -l
+done
+#For mac, need to use gzcat
+```
+
+\(5\) Context for self: The command 'head' is used to display the first few lines of one or more text files directly in the terminal. 'Tail' is to output the last part \[usually last 10 lines\]. 'awk' allows for manipulating and formatting data. 'sort' sorts lines of text in a particular order. 'uniq' reports matching lines from a file.
+
+```{bash}
+#check column names for admissions.csv.gz [ first few lines]
+gzcat ~/mimic/hosp/admissions.csv.gz | head
+```
+
+Ok now let us display the total rows but make sure to exclude the header.
+
+```{bash}
+gzcat ~/mimic/hosp/admissions.csv.gz | tail -n +2 | wc -l
+#the n+2 gets us past the first header line
+```
+
+The total rows should be the total hadm_id hospitalizations, but let us check.
+
+```{bash}
+gzcat ~/mimic/hosp/admissions.csv.gz | tail -n +2 | awk -F, '{print $2}' | sort | uniq | wc -l
+```
+
+Yay! So, there are 546,028 hospitalizations in this dataset. (Yay for getting the right code... not yaya for hospitalizations...) How many unique patients (subject_id) are in this data file. (Let's do that same but with print\$1 not print\$2).
+
+```{bash}
+#how many unique patients??????
+gzcat ~/mimic/hosp/admissions.csv.gz | tail -n +2 | awk -F, '{print $1}' | sort | uniq | wc -l
+```
+
+```{bash}
+#but.... does this match the # of patients listed in patients.csv.gz?
+gzcat ~/mimic/hosp/patients.csv.gz | tail -n +2 | wc -l
+```
+
+Nope. The patients.csv.gz file is a master list of everyone who has been to the hospital even if they were not admitted, which the admissions only contains the admittited patients.
+
+\(6\) Let's deep dive into the values taken by the variables below and report the counts in decreasing order.
+
+```{bash}
+echo "--- Admission Type ---"
+gzcat ~/mimic/hosp/admissions.csv.gz | tail -n +2 | awk -F, '{print $6}' | sort | uniq -c | sort -nr
+```
+
+```{bash}
+echo "--- Admission Location ---"
+gzcat ~/mimic/hosp/admissions.csv.gz | tail -n +2 | awk -F, '{print $8}' | sort | uniq -c | sort -nr
+```
+
+```{bash}
+echo "--- Insurance ---"
+gzcat ~/mimic/hosp/admissions.csv.gz | tail -n +2 | awk -F, '{print $10}' | sort | uniq -c | sort -nr
+```
+
+```{bash}
+echo "--- Ethnicity/Race ---"
+gzcat ~/mimic/hosp/admissions.csv.gz | tail -n +2 | awk -F, '{print $13}' | sort | uniq -c | sort -nr
+```
+
+\(7\) Ok, so now, similar workflow but looking at a different file.. let's look into the stay_id and subject_id variables of the ICU stays file.
+
+```{bash}
+#checking header columns first to make sure 
+#gzcat ~/mimic/icu/icustays.csv.gz | head
+#ok confirmed this so i am commenting out this row becuase the output is so long
+
+#count ICU stays [rows of this]
+echo "--- ICU STAYS ---"
+gzcat ~/mimic/icu/icustays.csv.gz | tail -n +2 | wc -l
+
+#count unique patients w/ subject_id
+echo "--- UNIQUE PATIENTS ---"
+gzcat ~/mimic/icu/icustays.csv.gz | tail -n +2 | awk -F, '{print $1}' | sort | uniq | wc -l
+```
+
+\(8\) COMPRESSED VS. NOT COMPRESSED!!
+
+Compare compressed gz file to uncompressed file size... and let's also look at speed!
+
+```{bash}
+#size of compressed file first
+ls -lh ~/mimic/hosp/labevents.csv.gz
+
+#let's uncompress this file now
+gzip -cd < ~/mimic/hosp/labevents.csv.gz > labevents.csv
+
+#check size of uncompressed fil
+ls -lh labevents.csv
+
+#ok, how long though.... so lets measure time to count lines in compressed file
+time gzip -cd ~/mimic/hosp/labevents.csv.gz | wc -l
+
+#now uncompressed
+time wc -l labevents.csv
+```
+
+```{bash}
+#delte the huge file!!
+rm labevents.csv
+```
+
+Ok so as we see the compressed was 2.4G and the uncompressed was 17G. The storage trade-off is that compressed files save huge amounts of space but generally are slower to read because the computer has to do extra work (CPU power) to essentially unzip them before they are read. Here, the times were actually pretty similar but the compressed is substantially smaller and more efficient here.
+
+------------------------------------------------------------------------
+
+## Q4- Who is popular in Pride and Prejudice?
+
+\(1\)
+
+```{bash}
+wget -nc http://www.gutenberg.org/cache/epub/42671/pg42671.txt
+```
+
+The wget -nc command in Linux uses the no clobbar option so it avoid overwriting an existing file with the same name. wget is not compatible automatically with mac (it is curl), but it can work if you install homebrew so i just did that to help with future setup.
+
+```{bash}
+for char in Elizabeth Jane Lydia Darcy
+do
+    echo $char:
+    grep -o "$char" pg42671.txt | wc -l
+done
+```
+
+Ok, so here we can clearly see that I was right :) Elizabeth was the most mentioned!
+
+\(2\) The difference between
+
+```{bash}
+echo 'hello, world' > test1.txt
+```
+
+and
+
+```{bash}
+echo 'hello, world' >> test2.txt
+```
+
+The first one has a single arrow which means *overwrite*, so if test1.txt does not exist, it creates it. But, if it already exists, it **erases everything inside it** and replaces it with this text.
+
+For the double arrow, this means *append*. So, if test2.txt does not exist, it creates it. If it already exists, it adds this text to the bottom of the file but keeps the rest of the text safe.
+
+\(3\) Ok so I use the vi editor in my terminal and my output was:
+
+Release date: May 9, 2013 \[eBook #42671\] Most recently updated: January 25, 2026
+
+Language: English
+
+The \$1 represents the filename (for us was pg42671.txt), \$2 was the end line number (20) and \$3 was the number of lines to display (5). The first line tells the computer which interpreter to use to run the code (used the standard shell).
+
+------------------------------------------------------------------------
+
+## Q5- More fun with Linux :)
+
+displays calendar of current month:
+
+```{bash}
+cal
+```
+
+displays full calendar for 2026
+
+```{bash}
+cal 2026
+```
+
+displays september 1752:
+
+```{bash}
+cal 9 1752
+```
+
+\^\^\^Here, 11 days are missing... from September 2nd to 14th. (when we switched calendars to Gregorian... super cool!)
+
+shows current date & time zone:
+
+```{bash}
+date
+```
+
+network name of my computer:
+
+```{bash}
+hostname
+```
+
+aka architecture, says if my computer utilizes an intel chip or silicon
+
+```{bash}
+arch
+```
+
+ID card for operating system essentially:
+
+```{bash}
+uname -a
+```
+
+how long the computer has been running since its last restart:
+
+```{bash}
+uptime
+```
+
+my username and terminal session details:
+
+```{bash}
+who am i 
+```
+
+all users currently logged into my machine:
+
+```{bash}
+who
+```
+
+a more detailed 'who', shows what users are doing:
+
+```{bash}
+w
+```
+
+displays my user ID (UID) and group ID (GID) numbers.
+
+```{bash}
+id
+```
+
+last few people who logged into computer (top 10):
+
+```{bash}
+last | head
+```
+
+creates every combination of these word parts! funnnn:
+
+```{bash}
+echo {con,pre}{sent,fer}{s,ed}
+```
+
+tells computer to do nothing for 5 seconds and measures how long that took:
+
+```{bash}
+time sleep 5
+```
+
+ran 'history \| tail' in terminal . it tells me the very last lines of the list of every single command i have typed into that terminal session since i started (useful for future actually).
+
+------------------------------------------------------------------------
+
+## Q6- Book & Git Cloning!
+
+Finished cloning the book!
+
+![](images/clipboard-1533758585.png)
+
+------------------------------------------------------------------------
+
+## Q6- AI Assistant
+
+When working, I use Gemini because I have the premium version offered to students for free for a year. I was using Gemini 3. I usually utilize Gemini when I am stuck and I want the to give me a hint on which direction to proceed or if I am getting errors and cannot seem to fix it on my own. The issues I often run into with Gemini specifically are when it offers suggestions that I explicitly stated to avoid and when it refers to older photos to help me and ignores the most recent photo I just sent.
+
+![](images/clipboard-4165078785.png)
+
+In example 1, I asked for help on how to build the loop for the lines, to which it gave me the incorrect direction and I was left with... 0 lines!
+
+![](images/clipboard-1438045743.png)
+
+In error 2, I sent it a screenshot of my uncompressed vs compressed times I got in my output and it gave me the incorrect numbers that did not align!
+
+![](images/clipboard-69083325.png)
+
+In example 3, it kept pushing me to utilize gzcat instead of gzip, which the homework had clarified to use, even when I emphasized I wanted to use gzip.
+
+![](images/clipboard-3061746874.png)
+
+This is example 4, these are my most frustrating style of errors. I will ask for help on direction, like here I said I have never used a text editor please help me implement that. It instead suggested I drop the text editor entirely!
+
+![](images/clipboard-53108800.png)
+
+And here, for example 5, it again suggested that no worries, just typing in R is a text editor in and of itself!
+
+------------------------------------------------------------------------
