@@ -61,3 +61,37 @@ done
 ```
 
 \(5\) Context for self: The command 'head' is used to display the first few lines of one or more text files directly in the terminal. 'Tail' is to output the last part \[usually last 10 lines\]. 'awk' allows for manipulating and formatting data. 'sort' sorts lines of text in a particular order. 'uniq' reports matching lines from a file.
+
+```{bash}
+#check column names for admissions.csv.gz [ first few lines]
+gzcat ~/mimic/hosp/admissions.csv.gz | head
+```
+
+Ok now let us display the total rows but make sure to exclude the header.
+
+```{bash}
+gzcat ~/mimic/hosp/admissions.csv.gz | tail -n +2 | wc -l
+#the n+2 gets us past the first header line
+```
+
+The total rows should be the total hadm_id hospitalizations, but let us check.
+
+```{bash}
+gzcat ~/mimic/hosp/admissions.csv.gz | tail -n +2 | awk -F, '{print $2}' | sort | uniq | wc -l
+```
+
+Yay! So, there are 546,028 hospitalizations in this dataset. (Yay for getting the right code... not yaya for hospitalizations...) How many unique patients (subject_id) are in this data file. (Let's do that same but with print\$1 not print\$2).
+
+```{bash}
+#how many unique patients??????
+gzcat ~/mimic/hosp/admissions.csv.gz | tail -n +2 | awk -F, '{print $1}' | sort | uniq | wc -l
+```
+
+```{bash}
+#but.... does this match the # of patients listed in patients.csv.gz?
+gzcat ~/mimic/hosp/patients.csv.gz | tail -n +2 | wc -l
+```
+
+Nope.
+
+\(6\)
