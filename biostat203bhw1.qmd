@@ -1,0 +1,16 @@
+---
+title: "biostat203hw1"
+format: html
+editor: visual
+author: Yasmine Tani
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+sessionInfo()
+```
+
+Q1- completed
+
+Q2 - completed
