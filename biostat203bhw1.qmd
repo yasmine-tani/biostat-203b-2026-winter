@@ -305,3 +305,11 @@ time sleep 5
 ran 'history \| tail' in terminal . it tells me the very last lines of the list of every single command i have typed into that terminal session since i started (useful for future actually).
 
 ------------------------------------------------------------------------
+
+## Q6- Book & Git Cloning!
+
+Finished cloning the book!
+
+![](images/clipboard-1533758585.png)
+
+------------------------------------------------------------------------

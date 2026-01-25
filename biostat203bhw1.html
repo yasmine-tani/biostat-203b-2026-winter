@@ -127,9 +127,9 @@ attached base packages:
 
 loaded via a namespace (and not attached):
  [1] htmlwidgets_1.6.4 compiler_4.5.1    fastmap_1.2.0     cli_3.6.5        
- [5] tools_4.5.1       htmltools_0.5.8.1 rstudioapi_0.17.1 yaml_2.3.10      
- [9] rmarkdown_2.29    knitr_1.50        jsonlite_2.0.0    xfun_0.54        
-[13] digest_0.6.37     rlang_1.1.6       evaluate_1.0.5   </code></pre>
+ [5] tools_4.5.1       htmltools_0.5.8.1 otel_0.2.0        rstudioapi_0.17.1
+ [9] yaml_2.3.10       rmarkdown_2.30    knitr_1.51        jsonlite_2.0.0   
+[13] xfun_0.54         digest_0.6.37     rlang_1.1.6       evaluate_1.0.5   </code></pre>
 </div>
 </div>
 <section id="q1--completed" class="level2">
@@ -403,17 +403,17 @@ drwxr-xr-x@ 11 yasminetani  staff    352 Jan 24 23:49 icu
 <span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a><span class="bu">time</span> wc <span class="at">-l</span> labevents.csv</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>-rw-r--r--@ 1 yasminetani  staff   2.4G Oct  3  2024 /Users/yasminetani/mimic/hosp/labevents.csv.gz
--rw-r--r--@ 1 yasminetani  staff    17G Jan 25 14:31 labevents.csv
+-rw-r--r--@ 1 yasminetani  staff    17G Jan 25 15:02 labevents.csv
  158374765
 
-real    0m14.947s
-user    0m23.305s
-sys 0m1.584s
+real    0m14.883s
+user    0m23.299s
+sys 0m1.594s
  158374765 labevents.csv
 
-real    0m14.746s
-user    0m13.210s
-sys 0m1.410s</code></pre>
+real    0m14.905s
+user    0m13.208s
+sys 0m1.453s</code></pre>
 </div>
 </div>
 <div class="cell">
@@ -544,7 +544,7 @@ Su Mo Tu We Th Fr Sa
 <div class="cell">
 <div class="sourceCode cell-code" id="cb48"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="fu">date</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Sun Jan 25 14:32:24 PST 2026</code></pre>
+<pre><code>Sun Jan 25 15:03:17 PST 2026</code></pre>
 </div>
 </div>
 <p>network name of my computer:</p>
@@ -572,14 +572,14 @@ Su Mo Tu We Th Fr Sa
 <div class="cell">
 <div class="sourceCode cell-code" id="cb56"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a><span class="fu">uptime</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>14:32  up 20 days, 18:56, 2 users, load averages: 3.16 2.93 2.85</code></pre>
+<pre><code>15:03  up 20 days, 19:27, 2 users, load averages: 2.58 2.50 2.49</code></pre>
 </div>
 </div>
 <p>my username and terminal session details:</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb58"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a><span class="fu">who</span> am i </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>yasminetani                   Jan 25 14:32 </code></pre>
+<pre><code>yasminetani                   Jan 25 15:03 </code></pre>
 </div>
 </div>
 <p>all users currently logged into my machine:</p>
@@ -594,10 +594,10 @@ yasminetani      ttys000      Jan 22 21:20 </code></pre>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb62"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a><span class="fu">w</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>14:32  up 20 days, 18:56, 2 users, load averages: 3.16 2.93 2.85
+<pre><code>15:03  up 20 days, 19:27, 2 users, load averages: 2.58 2.50 2.49
 USER       TTY      FROM    LOGIN@  IDLE WHAT
 yasminetan console  -      04Jan26 20days -
-yasminetan s000     -      Thu21      52 -zsh</code></pre>
+yasminetan s000     -      Thu21      13 -zsh</code></pre>
 </div>
 </div>
 <p>displays my user ID (UID) and group ID (GID) numbers.</p>
@@ -636,11 +636,17 @@ yasminetani ttys003                         Thu Oct 23 16:51 - 16:51  (00:00)</c
 <div class="cell-output cell-output-stdout">
 <pre><code>
 real    0m5.008s
-user    0m0.000s
+user    0m0.001s
 sys 0m0.001s</code></pre>
 </div>
 </div>
 <p>ran ‘history | tail’ in terminal . it tells me the very last lines of the list of every single command i have typed into that terminal session since i started (useful for future actually).</p>
+<hr>
+</section>
+<section id="q6--book-git-cloning" class="level2">
+<h2 class="anchored" data-anchor-id="q6--book-git-cloning">Q6- Book &amp; Git Cloning!</h2>
+<p>Finished cloning the book!</p>
+<p><img src="images/clipboard-1533758585.png" class="img-fluid"></p>
 <hr>
 </section>
 
