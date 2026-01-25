@@ -11,11 +11,11 @@ editor_options:
 sessionInfo()
 ```
 
-Q1- completed
+## Q1- completed
 
-Q2 - completed
+## Q2 - completed
 
-Q3:
+## Q3:
 
 \(1\)
 
@@ -94,7 +94,7 @@ gzcat ~/mimic/hosp/patients.csv.gz | tail -n +2 | wc -l
 
 Nope. The patients.csv.gz file is a master list of everyone who has been to the hospital even if they were not admitted, which the admissions only contains the admittited patients.
 
-\(6\)
+\(6\) Let's deep dive into the values taken by the variables below and report the counts in decreasing order.
 
 ```{bash}
 echo "--- Admission Type ---"
@@ -116,4 +116,70 @@ echo "--- Ethnicity/Race ---"
 gzcat ~/mimic/hosp/admissions.csv.gz | tail -n +2 | awk -F, '{print $13}' | sort | uniq -c | sort -nr
 ```
 
-\(7\)
+\(7\) Ok, so now, similar workflow but looking at a different file.. let's look into the stay_id and subject_id variables of the ICU stays file.
+
+```{bash}
+#checking header columns first to make sure 
+#gzcat ~/mimic/icu/icustays.csv.gz | head
+#ok confirmed this so i am commenting out this row becuase the output is so long
+
+#count ICU stays [rows of this]
+echo "--- ICU STAYS ---"
+gzcat ~/mimic/icu/icustays.csv.gz | tail -n +2 | wc -l
+
+#count unique patients w/ subject_id
+echo "--- UNIQUE PATIENTS ---"
+gzcat ~/mimic/icu/icustays.csv.gz | tail -n +2 | awk -F, '{print $1}' | sort | uniq | wc -l
+```
+
+\(8\) COMPRESSED VS. NOT COMPRESSED!!
+
+Compare compressed gz file to uncompressed file size... and let's also look at speed!
+
+```{bash}
+#size of compressed file first
+ls -lh ~/mimic/hosp/labevents.csv.gz
+
+#let's uncompress this file now
+gzip -cd < ~/mimic/hosp/labevents.csv.gz > labevents.csv
+
+#check size of uncompressed fil
+ls -lh labevents.csv
+
+#ok, how long though.... so lets measure time to count lines in compressed file
+time gzip -cd ~/mimic/hosp/labevents.csv.gz | wc -l
+
+#now uncompressed
+time wc -l labevents.csv
+```
+
+```{bash}
+#delte the huge file!!
+rm labevents.csv
+```
+
+Ok so as we see the compressed was 2.4G and the uncompressed was 17G. The storage trade-off is that compressed files save huge amounts of space but generally are slower to read because the computer has to do extra work (CPU power) to essentially unzip them before they are read. Here, the times were actually pretty similar but the compressed is substantially smaller and more efficient here.
+
+------------------------------------------------------------------------
+
+## Q4- Who is popular in Pride and Prejudice?
+
+\(1\)
+
+```{bash}
+wget -nc http://www.gutenberg.org/cache/epub/42671/pg42671.txt
+```
+
+The wget -nc command in Linux uses the no clobbar option so it avoid overwriting an existing file with the same name. wget is not compatible automatically with mac (it is curl), but it can work if you install homebrew so i just did that to help with future setup.
+
+```{bash}
+for char in Elizabeth Jane Lydia Darcy
+do
+    echo $char:
+    grep -o "$char" pg42671.txt | wc -l
+done
+```
+
+Ok, so here we can clearly see that I was right :) Elizabeth was the most mentioned!
+
+\(2\)
