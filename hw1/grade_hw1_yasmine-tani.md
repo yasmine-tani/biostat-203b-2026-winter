@@ -1,6 +1,6 @@
 *TANI, YASMINE (yasmine-tani)*
 
-### Overall Grade: 99/140
+### Overall Grade: 114/140
 
 ---
 
@@ -14,15 +14,15 @@
 
 ---
 
-### Completeness, correctness and efficiency of solution: 73/90
+### Completeness, correctness and efficiency of solution: 88/90
 
 **Q1 (10/10)**
 
 - Repository name correctly set up.
 
-**Q2 (0/20)**
+**Q2 (15/20)**
 
-- **-20 points**: CITI training completion links NOT provided. Only "Q2 - completed" is written without verification links.
+- **-5 points**: The first submission did not contain both.
 
 **Q3 (20/20)**
 
