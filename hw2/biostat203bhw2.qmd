@@ -1,0 +1,140 @@
+---
+title: "biostat203bhw2"
+format: html
+editor: visual
+author: Yasmine Tani; UID 406579988
+---
+
+```{r}
+sessionInfo()
+```
+
+```{r}
+#loading libraries
+library(arrow)
+library(data.table)
+library(duckdb)
+library(memuse)
+library(pryr)
+library(R.utils)
+library(tidyverse)
+```
+
+```{r}
+memuse::Sys.meminfo()
+```
+
+```{bash}
+ls -l ~/mimic/hosp/
+```
+
+```{bash}
+ls -l ~/mimic/icu/
+```
+
+## Q1 read.csv (base R) vs read_csv (tidyverse) vs fread(data.table)
+
+### 1.1 Speed, Memory, and Data Types
+
+```{r}
+#this is the speed of the run time for read.csv
+system.time(function1 <-read.csv("mimic/hosp/admissions.csv.gz"))
+
+#now the memory usage of read.csv
+pryr::object_size(function1)
+
+#let me check the class too for later
+class(function1)
+
+```
+
+Read.csv has a run time of 2.701 seconds and utilized 200.10 MB of memory. Produces a data frame.
+
+```{r}
+# the speed for read_csv
+system.time(function2 <-read_csv("mimic/hosp/admissions.csv.gz"))
+
+#memory usage of read_csv
+pryr::object_size(function2)
+class(function2)
+```
+
+Read_csv has a run time of 0.410 seconds and utilized 70.02 MB of memory. Produces a tibble.
+
+```{r}
+# run time for fread
+system.time(function3 <-fread("mimic/hosp/admissions.csv.gz"))
+
+#memory usage of fread
+pryr::object_size(function3)
+class(function3)
+```
+
+Fread has a run time of 0.280 seconds and utilized 63.47 MB of memory. Produces a data frame.
+
+Fread is the fastest function with an elapsed time of 0.280 seconds in comparison to 0.410 and 2.701 seconds. fread and read.csv produce data frames while read_csv produces a tibble with tidyverse.
+
+### 1.2 User-supplied data types
+
+ok so if i dont indicate column type, R will scan the first 1000 rows of my file and take a guess as to what my structure is, including using labels like emergency as character strings which takes up a lot of memory so i should explicitly tell R what to expect
+
+```{r}
+#i honeslty want to see what it "guessed" previously first
+spec(function2)
+```
+
+yep so lots of memory-draining assumptions that we want to optimize....
+
+so numbers without decimals (like the IDs), I will make integers. categories (like marital status and race), I will make categories.
+
+```{r}
+system.time(
+  optimizeddata <-read_csv("mimic/hosp/admissions.csv.gz",
+        col_types = cols(
+        #categories
+        admission_type = col_factor(),
+        admission_location = col_factor(),
+        discharge_location = col_factor(),
+        insurance = col_factor(),
+        language = col_factor(),
+        marital_status = col_factor(),
+        race = col_factor(),
+        
+        #integer vibes
+        subject_id = col_integer(),
+        hadm_id = col_integer(),
+        hospital_expire_flag = col_integer(),
+        
+        #the rest were guessed right so will leave them
+        .default = col_guess()
+        )
+    )
+)
+pryr::object_size(optimizeddata)
+```
+
+The run time went from 0.41 seconds to 0.341 seconds so it did not change by much but went down a little. The memory of the resulting tibble uses 48.19 MB (less than 50 MB).
+
+------------------------------------------------------------------------
+
+## Q2 Ingest Big Data Files
+
+Q2.2
+
+```{bash}
+ls -l ~/mimic/hosp/labevents.csv.gz
+```
+
+```{bash}
+zcat < ~/mimic/hosp/labevents.csv.gz | head -10
+```
+
+ok so now try to ingest this way bigger file with read_csv
+
+```{r}
+read_csv("mimic/hosp/labevents.csv.gz")
+```
+
+TOOK OVER 3 MINUTES! ABORTED!
+
+Q2.3
