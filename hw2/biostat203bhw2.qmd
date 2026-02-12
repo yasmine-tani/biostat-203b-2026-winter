@@ -131,7 +131,7 @@ zcat < ~/mimic/hosp/labevents.csv.gz | head -10
 
 ok so now try to ingest this way bigger file with read_csv
 
-### Q 2.1
+### Q 2.1 Ingesting by read_csv
 
 ```{r}
 #| cache: true
@@ -146,7 +146,7 @@ TOOK OVER 3 MINUTES! ABORTED!
 
 ------------------------------------------------------------------------
 
-### Q 2.2
+### Q 2.2 Ingesting Selected Columns
 
 ```{r}
 #| cache: true
@@ -161,7 +161,7 @@ It did ingest, though it took a significant amount of time.
 
 ------------------------------------------------------------------------
 
-### Q 2.3
+### Q 2.3 Ingesting a subset 
 
 ```{r}
 # ingesting subset of labevents.csv.gz
@@ -206,12 +206,38 @@ labevents_subset %>%
 system("zcat < labevents_filtered.csv.gz | tail -n +2 | wc -l")
 ```
 
--   answer questions
+It takes 4.328 seconds for read_csv to ingest the filtered csv.gz file. There are 33712352 lines in this new file!
 
 ---
 
-### Q 2.4
+### Q 2.4 Ingest by Apache Arrow
 
 ```{r}
+# ok so here goes our huge file
+if (!file.exists("labevents.csv")) {
+  system("zcat < ~/mimic/hosp/labevents.csv.gz > labevents.csv")
+}
 
+#same items as above
+labitems <- c(50862, 50912, 50971, 50983, 50902, 
+              50882, 51221, 51301, 50931)
+
+
+#ok now we are using arrow
+system.time({
+  arrow_subset <- arrow::open_dataset("labevents.csv", format = "csv") %>%
+    dplyr::select(subject_id, itemid, charttime, valuenum) %>%
+    dplyr::filter(itemid %in% labitems) %>%
+    collect()
+})
+
+#results
+dim(arrow_subset)
+head(arrow_subset)
 ```
+
+Apache arrow organizes data by columns, not by rows and creates a standard format that every language can understand (no need to convert between R, Python, etc.). This allows for extremely fast data scanning and no need for data duplicating.
+
+------------------------------------------------------------------------
+
+### Q 2.5 Compress to Parquet format 
