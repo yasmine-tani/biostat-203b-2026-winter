@@ -278,10 +278,65 @@ Ok so parquet format saves data vertically (by column) instead of horizontally, 
 
 ### Q 2.6 DuckDB
 
+```{r}
+
+labitems <- c(50862, 50912, 50971, 50983, 50902, 
+              50882, 51221, 51301, 50931)
+
+#DUCKDBBBB
+system.time({
+  duckdb_subset <- arrow::open_dataset("labevents.parquet") %>%
+    arrow::to_duckdb() %>%
+    dplyr::select(subject_id, itemid, charttime, valuenum) %>%
+    dplyr::filter(itemid %in% labitems) %>%
+    dplyr::collect()
+})
+
+#results
+dim(duckdb_subset)
+head(duckdb_subset)
+```
+
+Ok so DuckDB is essentially a database management system that allows you to run code entirely serverless. It is also in-process so it is inside your R/Python/etc. session so you do not need a background program. This is very popular particulary for analytics.
+
 ------------------------------------------------------------------------
 
 ### Q 3 Ingest & filter chartevents.csv.gz
 
+```{r}
+#vitals we want
+chartitems <- c(220045, 220181, 220179, 223761, 220210)
+items_string <- paste(chartitems, collapse = "|")
+
+#filter command
+cmd <- paste0(
+  "zcat < ~/mimic/icu/chartevents.csv.gz | ",
+  "awk -F, 'BEGIN {OFS=\",\"} {if (NR==1 || $7 ~ /^(", 
+  items_string, 
+  ")$/) print $1, $5, $7, $9}' | ",
+  "gzip > chartevents_filtered.csv.gz"
+)
+
+#running it
+system.time(system(cmd))
+
+#load into r
+chartevents_subset <- read_csv("chartevents_filtered.csv.gz",
+  col_types = cols(
+    subject_id = col_integer(),
+    charttime = col_datetime(),
+    itemid = col_integer(),
+    valuenum = col_double()
+  )
+)
+
+#results
+dim(chartevents_subset)
+head(chartevents_subset)
+```
+
 ------------------------------------------------------------------------
 
-### Q 4 AI Assistant
+30195426 rows
+
+### 
