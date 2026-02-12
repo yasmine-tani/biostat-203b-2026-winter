@@ -48,7 +48,7 @@ class(function1)
 
 ```
 
-Read.csv has a run time of 2.701 seconds and utilized 200.10 MB of memory. Produces a data frame.
+Read.csv has a run time of 4.465 seconds and utilized 200.10 MB of memory. Produces a data frame.
 
 ```{r}
 # the speed for read_csv
@@ -59,7 +59,7 @@ pryr::object_size(function2)
 class(function2)
 ```
 
-Read_csv has a run time of 0.410 seconds and utilized 70.02 MB of memory. Produces a tibble.
+Read_csv has a run time of 0.367 seconds and utilized 70.02 MB of memory. Produces a tibble.
 
 ```{r}
 # run time for fread
@@ -70,9 +70,11 @@ pryr::object_size(function3)
 class(function3)
 ```
 
-Fread has a run time of 0.280 seconds and utilized 63.47 MB of memory. Produces a data frame.
+Fread has a run time of 0.259 seconds and utilized 63.47 MB of memory. Produces a data frame.
 
-Fread is the fastest function with an elapsed time of 0.280 seconds in comparison to 0.410 and 2.701 seconds. fread and read.csv produce data frames while read_csv produces a tibble with tidyverse.
+Fread is the fastest function with an elapsed time of 0.259 seconds in comparison to 0.367 and 4.465 seconds. fread and read.csv produce data frames while read_csv produces a tibble with tidyverse.
+
+Read_csv automatically detects datatime for time columns but read.csv usually reads them as characters.
 
 ### 1.2 User-supplied data types
 
@@ -119,8 +121,6 @@ The run time went from 0.41 seconds to 0.341 seconds so it did not change by muc
 
 ## Q2 Ingest Big Data Files
 
-Q2.2
-
 ```{bash}
 ls -l ~/mimic/hosp/labevents.csv.gz
 ```
@@ -131,10 +131,87 @@ zcat < ~/mimic/hosp/labevents.csv.gz | head -10
 
 ok so now try to ingest this way bigger file with read_csv
 
+### Q 2.1
+
 ```{r}
-read_csv("mimic/hosp/labevents.csv.gz")
+#| cache: true
+#| eval: true
+
+#read_csv("mimic/hosp/labevents.csv.gz")
+
+#commented out because rendering was taking forever
 ```
 
 TOOK OVER 3 MINUTES! ABORTED!
 
-Q2.3
+------------------------------------------------------------------------
+
+### Q 2.2
+
+```{r}
+#| cache: true
+#| eval: true
+
+read_csv("mimic/hosp/labevents.csv.gz",
+  col_select =c(subject_id,itemid,charttime,valuenum))
+
+```
+
+It did ingest, though it took a significant amount of time.
+
+------------------------------------------------------------------------
+
+### Q 2.3
+
+```{r}
+# ingesting subset of labevents.csv.gz
+
+labitems <- c(50862, 50912, 50971, 50983, 50902, 
+              50882, 51221, 51301, 50931)
+
+items_string <- paste(labitems, collapse = "|")
+
+
+#filtering on columns
+cmd <- paste0(
+  "zcat < ~/mimic/hosp/labevents.csv.gz | ",
+  "awk -F, 'BEGIN {OFS=\",\"} {if (NR==1 || $5 ~ /^(", 
+  items_string, 
+  ")$/) print $2, $5, $7, $10}' | ",
+  "gzip > labevents_filtered.csv.gz"
+)
+# saving this new file so we dont save huge original
+if (!file.exists("labevents_filtered.csv.gz")) {
+  system(cmd)
+}
+
+# ingestion time of new file??
+system.time({
+  labevents_subset <- read_csv("labevents_filtered.csv.gz",
+    col_types = cols(
+      subject_id = col_integer(),
+      itemid = col_integer(),
+      charttime = col_datetime(),
+      valuenum = col_double()
+    )
+  )
+})
+
+# results?
+labevents_subset %>%
+  arrange(subject_id, charttime, itemid) %>%
+  head(10)
+
+# header
+system("zcat < labevents_filtered.csv.gz | tail -n +2 | wc -l")
+```
+
+-   answer questions
+
+---
+
+### Q 2.4
+
+```{r}
+
+```
