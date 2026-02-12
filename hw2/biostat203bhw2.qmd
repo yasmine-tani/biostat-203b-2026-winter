@@ -241,3 +241,47 @@ Apache arrow organizes data by columns, not by rows and creates a standard forma
 ------------------------------------------------------------------------
 
 ### Q 2.5 Compress to Parquet format 
+
+```{r}
+#parquetttt
+
+labitems <- c(50862, 50912, 50971, 50983, 50902, 
+              50882, 51221, 51301, 50931)
+
+
+#converting CSV to parquet
+if (!file.exists("labevents.parquet")) {
+  csv_ds <- arrow::open_dataset("labevents.csv", format = "csv")
+  arrow::write_dataset(csv_ds, "labevents.parquet", format = "parquet")
+}
+
+#size of parquet files?
+system("du -sh labevents.parquet")
+
+#ingest time???
+system.time({
+  parquet_subset <- arrow::open_dataset("labevents.parquet") %>%
+    dplyr::select(subject_id, itemid, charttime, valuenum) %>%
+    dplyr::filter(itemid %in% labitems) %>%
+    collect()
+})
+
+#results
+dim(parquet_subset)
+head(parquet_subset)
+
+```
+
+Ok so parquet format saves data vertically (by column) instead of horizontally, essentially putting columns into their own boxes. So you can grab one box and ignore the rest making it faster to handle.
+
+------------------------------------------------------------------------
+
+### Q 2.6 DuckDB
+
+------------------------------------------------------------------------
+
+### Q 3 Ingest & filter chartevents.csv.gz
+
+------------------------------------------------------------------------
+
+### Q 4 AI Assistant
