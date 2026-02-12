@@ -263,7 +263,7 @@ Attaching package: 'R.utils'</code></pre>
 <div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>memuse<span class="sc">::</span><span class="fu">Sys.meminfo</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Totalram:   24.000 GiB 
-Freeram:   130.141 MiB </code></pre>
+Freeram:   181.719 MiB </code></pre>
 </div>
 </div>
 <div class="cell">
@@ -318,7 +318,7 @@ Freeram:   130.141 MiB </code></pre>
 <span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a><span class="fu">system.time</span>(function1 <span class="ot">&lt;-</span><span class="fu">read.csv</span>(<span class="st">"mimic/hosp/admissions.csv.gz"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>   user  system elapsed 
-  4.382   0.063   4.447 </code></pre>
+  4.426   0.066   4.507 </code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="co">#now the memory usage of read.csv</span></span>
 <span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>pryr<span class="sc">::</span><span class="fu">object_size</span>(function1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -331,7 +331,7 @@ Freeram:   130.141 MiB </code></pre>
 <pre><code>[1] "data.frame"</code></pre>
 </div>
 </div>
-<p>Read.csv has a run time of 4.465 seconds and utilized 200.10 MB of memory. Produces a data frame.</p>
+<p>Read.csv has a run time of 4.428 seconds and utilized 200.10 MB of memory. Produces a data frame.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="co"># the speed for read_csv</span></span>
 <span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a><span class="fu">system.time</span>(function2 <span class="ot">&lt;-</span><span class="fu">read_csv</span>(<span class="st">"mimic/hosp/admissions.csv.gz"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -348,7 +348,7 @@ dttm (5): admittime, dischtime, deathtime, edregtime, edouttime
 </div>
 <div class="cell-output cell-output-stdout">
 <pre><code>   user  system elapsed 
-  0.799   0.082   0.459 </code></pre>
+  0.803   0.081   0.489 </code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb46"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="co">#memory usage of read_csv</span></span>
 <span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a>pryr<span class="sc">::</span><span class="fu">object_size</span>(function2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -366,7 +366,7 @@ dttm (5): admittime, dischtime, deathtime, edregtime, edouttime
 <span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a><span class="fu">system.time</span>(function3 <span class="ot">&lt;-</span><span class="fu">fread</span>(<span class="st">"mimic/hosp/admissions.csv.gz"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>   user  system elapsed 
-  0.614   0.030   0.265 </code></pre>
+  0.657   0.034   0.291 </code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb52"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a><span class="co">#memory usage of fread</span></span>
 <span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a>pryr<span class="sc">::</span><span class="fu">object_size</span>(function3)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -379,7 +379,7 @@ dttm (5): admittime, dischtime, deathtime, edregtime, edouttime
 </div>
 </div>
 <p>Fread has a run time of 0.259 seconds and utilized 63.47 MB of memory. Produces a data frame.</p>
-<p>Fread is the fastest function with an elapsed time of 0.259 seconds in comparison to 0.367 and 4.465 seconds. fread and read.csv produce data frames while read_csv produces a tibble with tidyverse.</p>
+<p>Fread is the fastest function with an elapsed time of 0.259 seconds in comparison to 0.367 and 4.428 seconds. fread and read.csv produce data frames while read_csv produces a tibble with tidyverse.</p>
 <p>Read_csv automatically detects datatime for time columns but read.csv usually reads them as characters.</p>
 </section>
 <section id="user-supplied-data-types" class="level3">
@@ -436,7 +436,7 @@ dttm (5): admittime, dischtime, deathtime, edregtime, edouttime
 <span id="cb58-22"><a href="#cb58-22" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>   user  system elapsed 
-  0.671   0.066   0.309 </code></pre>
+  0.665   0.061   0.325 </code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb60"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a>pryr<span class="sc">::</span><span class="fu">object_size</span>(optimizeddata)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
@@ -476,7 +476,7 @@ dttm (5): admittime, dischtime, deathtime, edregtime, edouttime
 <div class="cell">
 <div class="sourceCode cell-code" id="cb66"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb66-1"><a href="#cb66-1" aria-hidden="true" tabindex="-1"></a><span class="co">#read_csv("mimic/hosp/labevents.csv.gz")</span></span>
 <span id="cb66-2"><a href="#cb66-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb66-3"><a href="#cb66-3" aria-hidden="true" tabindex="-1"></a><span class="co">#commented out because rendering was taking forever</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb66-3"><a href="#cb66-3" aria-hidden="true" tabindex="-1"></a><span class="co">#commented out because rendering was taking forever (as expected in instructions)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>TOOK OVER 3 MINUTES! ABORTED!</p>
 <hr>
@@ -553,7 +553,7 @@ dttm (1): charttime
 <span id="cb70-32"><a href="#cb70-32" aria-hidden="true" tabindex="-1"></a>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>   user  system elapsed 
- 11.915   1.186   4.744 </code></pre>
+ 11.859   1.253   4.860 </code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb72"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb72-1"><a href="#cb72-1" aria-hidden="true" tabindex="-1"></a><span class="co"># results?</span></span>
 <span id="cb72-2"><a href="#cb72-2" aria-hidden="true" tabindex="-1"></a>labevents_subset <span class="sc">%&gt;%</span></span>
@@ -602,7 +602,7 @@ dttm (1): charttime
 <span id="cb75-17"><a href="#cb75-17" aria-hidden="true" tabindex="-1"></a>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>   user  system elapsed 
- 48.604   2.629  46.844 </code></pre>
+ 49.118   2.789  47.714 </code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb77"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb77-1"><a href="#cb77-1" aria-hidden="true" tabindex="-1"></a><span class="co">#results</span></span>
 <span id="cb77-2"><a href="#cb77-2" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(arrow_subset)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -652,7 +652,7 @@ dttm (1): charttime
 <span id="cb81-22"><a href="#cb81-22" aria-hidden="true" tabindex="-1"></a>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>   user  system elapsed 
-  5.763   1.992   3.201 </code></pre>
+  5.735   1.984   3.210 </code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb83"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb83-1"><a href="#cb83-1" aria-hidden="true" tabindex="-1"></a><span class="co">#results</span></span>
 <span id="cb83-2"><a href="#cb83-2" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(parquet_subset)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -691,7 +691,7 @@ dttm (1): charttime
 <span id="cb87-11"><a href="#cb87-11" aria-hidden="true" tabindex="-1"></a>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>   user  system elapsed 
-  6.424   2.127   3.223 </code></pre>
+  6.427   2.139   3.329 </code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb89"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb89-1"><a href="#cb89-1" aria-hidden="true" tabindex="-1"></a><span class="co">#results</span></span>
 <span id="cb89-2"><a href="#cb89-2" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(duckdb_subset)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -703,12 +703,12 @@ dttm (1): charttime
 <pre><code># A tibble: 6 × 4
   subject_id itemid charttime           valuenum
        &lt;dbl&gt;  &lt;dbl&gt; &lt;dttm&gt;                 &lt;dbl&gt;
-1   10003199  51301 2110-11-18 06:00:00      8.4
-2   10003199  50882 2116-07-06 13:14:00     25  
-3   10003199  50902 2116-07-06 13:14:00    103  
-4   10003199  50912 2116-07-06 13:14:00      0.8
-5   10003199  50931 2116-07-06 13:14:00    102  
-6   10003199  50971 2116-07-06 13:14:00      4.1</code></pre>
+1   10001884  50971 2130-04-08 18:15:00      3.8
+2   10001884  50983 2130-04-08 18:15:00    138  
+3   10001884  51221 2130-04-08 18:15:00     40.2
+4   10001884  51301 2130-04-08 18:15:00      5.7
+5   10001884  50882 2130-04-09 05:55:00     29  
+6   10001884  50902 2130-04-09 05:55:00     99  </code></pre>
 </div>
 </div>
 <p>Ok so DuckDB is essentially a database management system that allows you to run code entirely serverless. It is also in-process so it is inside your R/Python/etc. session so you do not need a background program. This is very popular particulary for analytics.</p>
@@ -734,7 +734,7 @@ dttm (1): charttime
 <span id="cb93-15"><a href="#cb93-15" aria-hidden="true" tabindex="-1"></a><span class="fu">system.time</span>(<span class="fu">system</span>(cmd))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>   user  system elapsed 
-687.898   7.119 662.944 </code></pre>
+680.366   7.248 655.791 </code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb95"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb95-1"><a href="#cb95-1" aria-hidden="true" tabindex="-1"></a><span class="co">#load into r</span></span>
 <span id="cb95-2"><a href="#cb95-2" aria-hidden="true" tabindex="-1"></a>chartevents_subset <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"chartevents_filtered.csv.gz"</span>,</span>
@@ -767,8 +767,14 @@ dttm (1): charttime
 <hr>
 <p>30195426 rows</p>
 </section>
-<section id="section" class="level3">
-<h3 class="anchored" data-anchor-id="section"></h3>
+<section id="q-4-ai-assistant" class="level3">
+<h3 class="anchored" data-anchor-id="q-4-ai-assistant">Q 4 AI Assistant</h3>
+<p>I use Gemini pro because students are awarded one year of pro, and I find that it helps me significantly when I need a concept explained or when I am stuck/have a bug. They certainly improve my productivity.</p>
+<p><img src="images/clipboard-2160826793.png" class="img-fluid"></p>
+<p>Here, I was stuck on how to set up my models with the IDs connecting to vital signs. It just gave me random numbers associated with vitals that I was not utilizing in the problem:</p>
+<p><img src="images/clipboard-1643008751.png" class="img-fluid"></p>
+<p>This time, it suspected the position of these variables based off of no prior context on where they were in my data, and it was incorrect.</p>
+<p>In all honesty, those were the only errors I had this time around, though I did have more. I ask very specific questions, so I did not see more than 2 significant errors.</p>
 </section>
 </section>
 

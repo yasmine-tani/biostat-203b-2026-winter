@@ -48,7 +48,7 @@ class(function1)
 
 ```
 
-Read.csv has a run time of 4.465 seconds and utilized 200.10 MB of memory. Produces a data frame.
+Read.csv has a run time of 4.428 seconds and utilized 200.10 MB of memory. Produces a data frame.
 
 ```{r}
 # the speed for read_csv
@@ -72,7 +72,7 @@ class(function3)
 
 Fread has a run time of 0.259 seconds and utilized 63.47 MB of memory. Produces a data frame.
 
-Fread is the fastest function with an elapsed time of 0.259 seconds in comparison to 0.367 and 4.465 seconds. fread and read.csv produce data frames while read_csv produces a tibble with tidyverse.
+Fread is the fastest function with an elapsed time of 0.259 seconds in comparison to 0.367 and 4.428 seconds. fread and read.csv produce data frames while read_csv produces a tibble with tidyverse.
 
 Read_csv automatically detects datatime for time columns but read.csv usually reads them as characters.
 
@@ -139,7 +139,7 @@ ok so now try to ingest this way bigger file with read_csv
 
 #read_csv("mimic/hosp/labevents.csv.gz")
 
-#commented out because rendering was taking forever
+#commented out because rendering was taking forever (as expected in instructions)
 ```
 
 TOOK OVER 3 MINUTES! ABORTED!
@@ -339,4 +339,16 @@ head(chartevents_subset)
 
 30195426 rows
 
-### 
+### Q 4 AI Assistant
+
+I use Gemini pro because students are awarded one year of pro, and I find that it helps me significantly when I need a concept explained or when I am stuck/have a bug. They certainly improve my productivity.
+
+![](images/clipboard-2160826793.png)
+
+Here, I was stuck on how to set up my models with the IDs connecting to vital signs. It just gave me random numbers associated with vitals that I was not utilizing in the problem:
+
+![](images/clipboard-1643008751.png)
+
+This time, it suspected the position of these variables based off of no prior context on where they were in my data, and it was incorrect.
+
+In all honesty, those were the only errors I had this time around, though I did have more. I ask very specific questions, so I did not see more than 2 significant errors.
