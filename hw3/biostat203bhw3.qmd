@@ -1,0 +1,421 @@
+---
+title: "biostat203bhw3"
+format: html
+editor: visual
+author: Yasmine Tani; UID 406579988
+---
+
+# Biostatistics 203B - Homework 3
+
+```{r}
+sessionInfo()
+```
+
+```{r}
+#loading necessary libraries
+library(arrow)
+library(gtsummary)
+library(memuse)
+library(pryr)
+library(R.utils)
+library(tidyverse)
+library(stringr)
+library(ggplot2)
+```
+
+```{r}
+memuse::Sys.meminfo()
+```
+
+## Q1 Visualizing Patient Trajectory
+
+### 1.1 ADT History (Admission-Discharge-Transfer)
+
+```{r}
+#patient dem for title, have to compute age manually according to TA
+patient_info <- read_csv("mimic/hosp/patients.csv.gz",
+            col_select = c(subject_id, anchor_age, anchor_year, gender)) |> 
+  filter(subject_id == 10063848)
+
+#need admit time to do that
+admission_info <- read_csv("mimic/hosp/admissions.csv.gz",
+                           col_select = c(subject_id, admittime)) |> 
+  filter(subject_id == 10063848)
+
+#AGE
+patient_real_age <- left_join(patient_info, admission_info, 
+                        by = "subject_id") |>mutate(calculated_age = anchor_age 
+                                        + (year(admittime) - anchor_year))
+
+print(patient_real_age)
+```
+
+Ok, so patient 10063848 is a 75 year old Female.
+
+```{r}
+#what about their race tho
+patient_demographic <- read_csv("mimic/hosp/admissions.csv.gz",
+    col_select = c(subject_id,race)) |>
+       filter(subject_id ==10063848)
+print(patient_demographic)
+```
+
+Ok so this patient was admitted a few times but our patient is a 75 year-old white female.
+
+```{r}
+#still on title, want patient's top 3 diagnoses
+patient_diagnoses <- read_csv("mimic/hosp/diagnoses_icd.csv.gz") |>
+  filter(subject_id == 10063848, seq_num <=3) #for top 3 diagnoses
+
+diagnoses_descriptions <-read_csv("mimic/hosp/d_icd_diagnoses.csv.gz") 
+#d_ is for dictionary
+
+top_diagnoses <- left_join(patient_diagnoses, diagnoses_descriptions,
+                   by = c("icd_code", "icd_version")) |> head(3)
+
+print(top_diagnoses)
+```
+
+The patient was admitted 3 separate times, so I selected the first 3 printed and filtered with head(3). Or else, we would be looking at 9 diagnoses (3x3).
+
+So seq1 is "Intestinal adhesions \[bands\] with obstruction (postinfection)", seq2 is "Acute respiratory failure with hypoxia" and seq3 is "Von Willebrand disease."
+
+```{r}
+transfer_information <-read_csv("mimic/hosp/transfers.csv.gz") |>
+  filter(subject_id == 10063848)
+
+print(transfer_information)
+```
+
+```{r}
+#using parquet generated in hw2
+patient_labs <- arrow::open_dataset("labevents.parquet") |> 
+  filter(subject_id == 10063848) |> 
+  collect()
+print(patient_labs)
+
+# what we will use for charttime
+#keep all admittance data here becuase we want patient's entire trajectory
+#only filtered when we needed only 3 top diagnoses
+```
+
+```{r}
+transfer_information <- transfer_information |>
+  mutate(is_icu = if_else(str_detect(careunit, "ICU|CCU"), "Yes", "No"))
+
+print(transfer_information)
+
+#Yay! Added ICU column
+```
+
+```{r}
+#similar left join as patient diagnoses but with procedures
+patient_procedures <- read_csv("mimic/hosp/procedures_icd.csv.gz") |>
+  filter(subject_id == 10063848)
+
+procedure_descriptions <-read_csv("mimic/hosp/d_icd_procedures.csv.gz") 
+
+patient_comp_procedures <- left_join(patient_procedures, procedure_descriptions,
+                   by = c("icd_code", "icd_version"))
+
+print(patient_comp_procedures)
+```
+
+```{r}
+# 1. Fix the procedure dates and shorten titles FIRST
+patient_comp_procedures <- patient_comp_procedures |>
+  mutate(
+    charttime = as_datetime(chartdate),
+    short_title = str_trunc(long_title, width = 30)
+  )
+```
+
+```{r}
+# THE PLOT! with all the combined data!
+trajectory_plot <- ggplot() +
+  # Layer 1: ADT history 
+  geom_segment(
+    data = transfer_information |> filter(eventtype != "discharge"),
+    mapping = aes(
+      x = intime,
+      xend = outtime,
+      y = "ADT",
+      yend = "ADT",
+      color = careunit,
+      linewidth = str_detect(careunit, "ICU|CCU") 
+    )
+  ) +
+  # Layer 2: Lab Events 
+  geom_point(
+    data = patient_labs,
+    mapping = aes(x = charttime, y = "Lab"),
+    shape = 3, 
+    size = 2,
+    alpha = 0.5 
+  ) +
+  # Layer 3: Procedures 
+  geom_point(
+    data = patient_comp_procedures,
+    mapping = aes(x = charttime, y = "Procedure", shape = short_title),
+    size = 3
+  ) +
+  scale_y_discrete(limits = c("Procedure", "Lab", "ADT")) +
+  labs(
+    title = "Patient 10063848, F, 75 years old, white",
+    subtitle = "Intestinal adhesions [bands] with obstruction(postinfection)
+Acute respiratory failure with hypoxia
+Von Willebrand disease", 
+    x = "Calendar Time",
+    y = NULL, 
+    color = "Care Unit",
+    shape = "Procedure"
+  ) +
+  guides(linewidth = "none") +
+  theme_bw() 
+
+print(trajectory_plot)
+```
+
+**DO THIS: For reproducibility, make the Parquet folder `labevents_pq` available at the current working directory `hw3`, for example, by a symbolic link. Make your code reproducible!!!!!!!**
+
+------------------------------------------------------------------------
+
+### 1.2 ICU Stays
+
+ok so i need to identify icu stays and look for vitals during those times and plot it.....
+
+```{r}
+icu_stays <- transfer_information |>
+  filter(is_icu == "Yes") |>
+  select(subject_id, hadm_id, careunit, intime, outtime) |>
+  mutate(stay_id = row_number())
+
+print(icu_stays)
+#we had already filtered icu earlier so need to extract that here
+```
+
+```{r, cache=TRUE}
+patient_vitals <- read_csv(
+  "mimic/icu/chartevents.csv.gz",
+  col_select = c(
+    subject_id,
+    hadm_id,
+    charttime,
+    itemid,
+    valuenum
+  )
+) |>
+filter(subject_id == 10063848)
+```
+
+```{r, cache=TRUE}
+vital_dict <- read_csv(
+  "mimic/icu/d_items.csv.gz",
+  col_select=c(
+    itemid,
+    label,
+    abbreviation
+  )
+)
+
+patient_vitals <- patient_vitals |>
+left_join(vital_dict,by="itemid")
+```
+
+```{r}
+patient_vitals <- patient_vitals |>
+filter(
+abbreviation %in%
+c("HR","NBPs","NBPd","RR","Temperature")
+)
+```
+
+```{r}
+icu_stays <- transfer_information |>
+filter(is_icu=="Yes") |>
+select(
+hadm_id,
+intime,
+outtime
+) |>
+mutate(stay_id=row_number())
+```
+
+```{r}
+icu_vitals <- patient_vitals |>
+inner_join(icu_stays,by="hadm_id") |>
+filter(
+charttime>=intime,
+charttime<=outtime
+)
+```
+
+```{r}
+ggplot(
+icu_vitals,
+aes(
+x=charttime,
+y=valuenum,
+color=abbreviation
+)
+)+
+geom_line()+
+geom_point()+
+facet_grid(
+abbreviation~stay_id,
+scales="free_y"
+)
+```
+
+# 
+
+FIX LATER....
+
+AND DO STYLISTIC ADD ON
+
+## Q2 ICU Stays
+
+```{bash}
+gzcat < ~/mimic/icu/icustays.csv.gz | head
+```
+
+### 2.1 Ingestion
+
+```{r}
+icustays_tble <- read_csv(
+"~/mimic/icu/icustays.csv.gz"
+)
+
+icustays_tble
+```
+
+### 2.2
+
+```{r}
+n_distinct(icustays_tble$subject_id)
+```
+
+```{r}
+icustays_tble |>
+count(subject_id) |>
+summarise(max_stays = max(n))
+```
+
+```{r}
+icustays_tble |>
+count(subject_id) |>
+count(n)
+```
+
+```{r}
+stays_per_subject <- icustays_tble |>
+count(subject_id)
+
+ggplot(stays_per_subject, aes(x = n)) +
+geom_histogram(binwidth = 1, boundary = 0) +
+labs(
+x = "Number of ICU stays per subject",
+y = "Number of subjects",
+title = "Distribution of ICU stays per subject"
+) +
+theme_bw()
+```
+
+------------------------------------------------------------------------
+
+## Q3 Admissions Data
+
+```{bash}
+gzcat < ~/mimic/hosp/admissions.csv.gz | head
+
+```
+
+### 3.1 Ingestion
+
+```{r}
+admissions_tble <- read_csv(
+"~/mimic/hosp/admissions.csv.gz"
+)
+
+admissions_tble
+```
+
+### 3.2 Summary and Visualization
+
+DO THIS!!!!!!
+
+------------------------------------------------------------------------
+
+## Q4 Patients Data
+
+```{bash}
+zcat < ~/mimic/hosp/patients.csv.gz | head
+```
+
+broken pipe fine\^? for all of them has this
+
+### 4.1 Ingestion
+
+```{r}
+patients_tble <- read_csv(
+"~/mimic/hosp/patients.csv.gz"
+)
+
+patients_tble
+```
+
+### 4.2 Summary and Visualization
+
+```{r}
+# Q4.2 Patients summary
+
+patients_tble |>
+  count(gender) |>
+  ggplot(aes(x = gender, y = n)) +
+  geom_col() +
+  labs(
+    title = "Gender distribution",
+    x = "Gender",
+    y = "Count"
+  )
+
+patients_tble |>
+  ggplot(aes(x = anchor_age)) +
+  geom_histogram(bins = 40) +
+  labs(
+    title = "Age distribution",
+    x = "Age",
+    y = "Count"
+  )
+
+```
+
+------------------------------------------------------------------------
+
+## Q5 Lab Results
+
+```{bash}
+zcat < ~/mimic/hosp/labevents.csv.gz | head
+```
+
+```{bash}
+zcat < ~/mimic/hosp/d_labitems.csv.gz | head
+```
+
+RETRIEVE A SUBSET! DO THIS!
+
+------------------------------------------------------------------------
+
+## Q6 Vitals from Charted Events
+
+```{bash}
+zcat < ~/mimic/icu/chartevents.csv.gz | head
+```
+
+```{bash}
+zcat < ~/mimic/icu/d_items.csv.gz | head
+```
+
+RETRIEVE A SUBSET! DO THIS!
+
+------------------------------------------------------------------------
