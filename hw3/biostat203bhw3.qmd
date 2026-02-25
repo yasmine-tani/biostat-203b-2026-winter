@@ -89,8 +89,8 @@ print(transfer_information)
 
 ```{r}
 #using parquet generated in hw2
-patient_labs <- arrow::open_dataset("labevents.parquet") |> 
-  filter(subject_id == 10063848) |> 
+patient_labs <- arrow::open_dataset("labevents_pq") |>
+  filter(subject_id == 10063848) |>
   collect()
 print(patient_labs)
 
@@ -251,27 +251,32 @@ charttime<=outtime
 ```
 
 ```{r}
+icu_vitals <- icu_vitals |>
+mutate(stay_id = as.character(stay_id))
 ggplot(
-icu_vitals,
-aes(
-x=charttime,
-y=valuenum,
-color=abbreviation
-)
-)+
-geom_line()+
-geom_point()+
+  icu_vitals,
+  aes(
+    x = charttime,
+    y = valuenum,
+    color = abbreviation
+  )
+) +
+geom_line() +
+geom_point() +
 facet_grid(
-abbreviation~stay_id,
-scales="free_y"
-)
+  abbreviation ~ stay_id,
+  scales = "free_y"
+) +
+labs(
+  title = "Patient 10063848 ICU stays - Vitals",
+  x = "Calendar Time",
+  y = NULL,
+  color = "Vital"
+) +
+theme_bw()
 ```
 
-# 
-
-FIX LATER....
-
-AND DO STYLISTIC ADD ON
+------------------------------------------------------------------------
 
 ## Q2 ICU Stays
 
@@ -295,17 +300,25 @@ icustays_tble
 n_distinct(icustays_tble$subject_id)
 ```
 
+There are 65,366 unique subject ids.
+
 ```{r}
 icustays_tble |>
 count(subject_id) |>
 summarise(max_stays = max(n))
 ```
 
+Yes, a subject can have more that one ICU stay. This is the mac number of stays for one person.
+
 ```{r}
 icustays_tble |>
 count(subject_id) |>
 count(n)
 ```
+
+The first table shows the maximum number of ICU stays for a single subject.\
+
+The second table shows how many subjects had each number of ICU stays.
 
 ```{r}
 stays_per_subject <- icustays_tble |>
@@ -320,6 +333,8 @@ title = "Distribution of ICU stays per subject"
 ) +
 theme_bw()
 ```
+
+This graph shows the distribution of ICU stays per subject. Most subjects have one ICU stay, with fewer subjects having multiple stays.
 
 ------------------------------------------------------------------------
 
@@ -342,7 +357,71 @@ admissions_tble
 
 ### 3.2 Summary and Visualization
 
-DO THIS!!!!!!
+```{r}
+admissions_per_patient <- admissions_tble |>
+  count(subject_id)
+
+ggplot(admissions_per_patient, aes(x = n)) +
+  geom_histogram(binwidth = 1, boundary = 0) +
+  labs(
+    x = "Number of admissions per patient",
+    y = "Number of patients",
+    title = "Admissions per patient"
+  ) +
+  theme_bw()
+
+```
+
+Most patients have only one hospital admission. A smaller number have multiple admissions, and very few patients have many admissions.
+
+```{r}
+admissions_tble |>
+  mutate(hour = lubridate::hour(admittime)) |>
+  ggplot(aes(x = hour)) +
+  geom_histogram(binwidth = 1) +
+  labs(
+    x = "Admission hour",
+    y = "Count",
+    title = "Hospital admissions by hour"
+  ) +
+  theme_bw()
+```
+
+Admissions occur throughout the day, with higher frequencies in the afternoon and evening hours( this is a 24 hour clock time). There is also a huge spike at midnight, which may reflect rounding or administrative recording practices.
+
+```{r}
+admissions_tble |>
+  mutate(minute = lubridate::minute(admittime)) |>
+  ggplot(aes(x = minute)) +
+  geom_histogram(binwidth = 1) +
+  labs(
+    x = "Admission minute",
+    y = "Count",
+    title = "Hospital admissions by minute"
+  ) +
+  theme_bw()
+
+```
+
+Admission minutes show spikes at round values such as 0 and 30. This suggests admission times are often recorded approximately rather than exactly( and around 45).
+
+```{r}
+admissions_tble |>
+  mutate(
+    los_days = as.numeric(dischtime - admittime, units = "days")
+  ) |>
+  ggplot(aes(x = los_days)) +
+  geom_histogram() +
+  labs(
+    x = "Length of stay (days)",
+    y = "Count",
+    title = "Length of hospital stay"
+  ) +
+  theme_bw()
+
+```
+
+Most hospital stays are short, with fewer long stays. The distribution is right-skewed, meaning a small number of patients stay much longer than average.
 
 ------------------------------------------------------------------------
 
@@ -351,8 +430,6 @@ DO THIS!!!!!!
 ```{bash}
 zcat < ~/mimic/hosp/patients.csv.gz | head
 ```
-
-broken pipe fine\^? for all of them has this
 
 ### 4.1 Ingestion
 
@@ -390,16 +467,18 @@ patients_tble |>
 
 ```
 
+The patient population in this dataset is relatively balanced between genders, with neither group significantly outnumbering the other.T here is a huge spike on the far left (younger patients) and another broad hump in the middle-age to elderly range. The first spike is likely newborns and the second spike is in 50-80.
+
 ------------------------------------------------------------------------
 
 ## Q5 Lab Results
 
 ```{bash}
-zcat < ~/mimic/hosp/labevents.csv.gz | head
+gzcat < ~/mimic/hosp/labevents.csv.gz | head
 ```
 
 ```{bash}
-zcat < ~/mimic/hosp/d_labitems.csv.gz | head
+gzcat < ~/mimic/hosp/d_labitems.csv.gz | head
 ```
 
 RETRIEVE A SUBSET! DO THIS!
@@ -409,11 +488,11 @@ RETRIEVE A SUBSET! DO THIS!
 ## Q6 Vitals from Charted Events
 
 ```{bash}
-zcat < ~/mimic/icu/chartevents.csv.gz | head
+gzcat < ~/mimic/icu/chartevents.csv.gz | head
 ```
 
 ```{bash}
-zcat < ~/mimic/icu/d_items.csv.gz | head
+gzcat < ~/mimic/icu/d_items.csv.gz | head
 ```
 
 RETRIEVE A SUBSET! DO THIS!
