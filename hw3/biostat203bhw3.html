@@ -248,7 +248,7 @@ Attaching package: 'R.utils'</code></pre>
 <div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>memuse<span class="sc">::</span><span class="fu">Sys.meminfo</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Totalram:  24.000 GiB 
-Freeram:    1.821 GiB </code></pre>
+Freeram:    2.670 GiB </code></pre>
 </div>
 </div>
 <section id="q1-visualizing-patient-trajectory" class="level2">
@@ -1103,13 +1103,85 @@ date (1): dod
 50810,"Hematocrit, Calculated",Blood,Blood Gas</code></pre>
 </div>
 </div>
-<p>RETRIEVE A SUBSET! DO THIS!</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb118"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb118-1"><a href="#cb118-1" aria-hidden="true" tabindex="-1"></a>labevents <span class="ot">&lt;-</span> <span class="fu">open_dataset</span>(<span class="st">"labevents_pq"</span>)</span>
+<span id="cb118-2"><a href="#cb118-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb118-3"><a href="#cb118-3" aria-hidden="true" tabindex="-1"></a>labs_needed <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb118-4"><a href="#cb118-4" aria-hidden="true" tabindex="-1"></a><span class="dv">50862</span>,<span class="dv">50912</span>,<span class="dv">50971</span>,</span>
+<span id="cb118-5"><a href="#cb118-5" aria-hidden="true" tabindex="-1"></a><span class="dv">50983</span>,<span class="dv">50902</span>,<span class="dv">50882</span>,</span>
+<span id="cb118-6"><a href="#cb118-6" aria-hidden="true" tabindex="-1"></a><span class="dv">51221</span>,<span class="dv">51301</span>,<span class="dv">50931</span></span>
+<span id="cb118-7"><a href="#cb118-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb118-8"><a href="#cb118-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb118-9"><a href="#cb118-9" aria-hidden="true" tabindex="-1"></a>labs_small <span class="ot">&lt;-</span> labevents <span class="sc">|&gt;</span></span>
+<span id="cb118-10"><a href="#cb118-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(itemid <span class="sc">%in%</span> labs_needed) <span class="sc">|&gt;</span></span>
+<span id="cb118-11"><a href="#cb118-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(subject_id, itemid, storetime, valuenum) <span class="sc">|&gt;</span></span>
+<span id="cb118-12"><a href="#cb118-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">collect</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb119"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb119-1"><a href="#cb119-1" aria-hidden="true" tabindex="-1"></a>labs_last <span class="ot">&lt;-</span> labs_small <span class="sc">|&gt;</span></span>
+<span id="cb119-2"><a href="#cb119-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">inner_join</span>(icustays_tble, <span class="at">by=</span><span class="st">"subject_id"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb119-3"><a href="#cb119-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(storetime <span class="sc">&lt;=</span> intime) <span class="sc">|&gt;</span></span>
+<span id="cb119-4"><a href="#cb119-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(stay_id,itemid) <span class="sc">|&gt;</span></span>
+<span id="cb119-5"><a href="#cb119-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">slice_max</span>(storetime,<span class="at">n=</span><span class="dv">1</span>) <span class="sc">|&gt;</span></span>
+<span id="cb119-6"><a href="#cb119-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning in inner_join(labs_small, icustays_tble, by = "subject_id"): Detected an unexpected many-to-many relationship between `x` and `y`.
+ℹ Row 2232 of `x` matches multiple rows in `y`.
+ℹ Row 19 of `y` matches multiple rows in `x`.
+ℹ If a many-to-many relationship is expected, set `relationship =
+  "many-to-many"` to silence this warning.</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb121"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb121-1"><a href="#cb121-1" aria-hidden="true" tabindex="-1"></a>labs_named <span class="ot">&lt;-</span> labs_last <span class="sc">|&gt;</span></span>
+<span id="cb121-2"><a href="#cb121-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb121-3"><a href="#cb121-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">lab =</span> <span class="fu">case_when</span>(</span>
+<span id="cb121-4"><a href="#cb121-4" aria-hidden="true" tabindex="-1"></a>      itemid <span class="sc">==</span> <span class="dv">50862</span> <span class="sc">~</span> <span class="st">"albumin"</span>,</span>
+<span id="cb121-5"><a href="#cb121-5" aria-hidden="true" tabindex="-1"></a>      itemid <span class="sc">==</span> <span class="dv">50912</span> <span class="sc">~</span> <span class="st">"creatinine"</span>,</span>
+<span id="cb121-6"><a href="#cb121-6" aria-hidden="true" tabindex="-1"></a>      itemid <span class="sc">==</span> <span class="dv">50971</span> <span class="sc">~</span> <span class="st">"potassium"</span>,</span>
+<span id="cb121-7"><a href="#cb121-7" aria-hidden="true" tabindex="-1"></a>      itemid <span class="sc">==</span> <span class="dv">50983</span> <span class="sc">~</span> <span class="st">"sodium"</span>,</span>
+<span id="cb121-8"><a href="#cb121-8" aria-hidden="true" tabindex="-1"></a>      itemid <span class="sc">==</span> <span class="dv">50902</span> <span class="sc">~</span> <span class="st">"chloride"</span>,</span>
+<span id="cb121-9"><a href="#cb121-9" aria-hidden="true" tabindex="-1"></a>      itemid <span class="sc">==</span> <span class="dv">50882</span> <span class="sc">~</span> <span class="st">"bicarbonate"</span>,</span>
+<span id="cb121-10"><a href="#cb121-10" aria-hidden="true" tabindex="-1"></a>      itemid <span class="sc">==</span> <span class="dv">51221</span> <span class="sc">~</span> <span class="st">"hematocrit"</span>,</span>
+<span id="cb121-11"><a href="#cb121-11" aria-hidden="true" tabindex="-1"></a>      itemid <span class="sc">==</span> <span class="dv">51301</span> <span class="sc">~</span> <span class="st">"wbc"</span>,</span>
+<span id="cb121-12"><a href="#cb121-12" aria-hidden="true" tabindex="-1"></a>      itemid <span class="sc">==</span> <span class="dv">50931</span> <span class="sc">~</span> <span class="st">"glucose"</span></span>
+<span id="cb121-13"><a href="#cb121-13" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb121-14"><a href="#cb121-14" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb121-15"><a href="#cb121-15" aria-hidden="true" tabindex="-1"></a>labevents_tble <span class="ot">&lt;-</span> labs_named <span class="sc">|&gt;</span></span>
+<span id="cb121-16"><a href="#cb121-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(subject_id, stay_id, lab, valuenum) <span class="sc">|&gt;</span></span>
+<span id="cb121-17"><a href="#cb121-17" aria-hidden="true" tabindex="-1"></a>  tidyr<span class="sc">::</span><span class="fu">pivot_wider</span>(</span>
+<span id="cb121-18"><a href="#cb121-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_from =</span> lab,</span>
+<span id="cb121-19"><a href="#cb121-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_from =</span> valuenum,</span>
+<span id="cb121-20"><a href="#cb121-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_fn =</span> mean</span>
+<span id="cb121-21"><a href="#cb121-21" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb122"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb122-1"><a href="#cb122-1" aria-hidden="true" tabindex="-1"></a>labevents_tble</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 88,099 × 11
+   subject_id  stay_id creatinine hematocrit   wbc albumin bicarbonate chloride
+        &lt;dbl&gt;    &lt;dbl&gt;      &lt;dbl&gt;      &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;       &lt;dbl&gt;    &lt;dbl&gt;
+ 1   12466550 30000153        1.2       39.1  17.9    NA            NA       NA
+ 2   13180007 30000213        3.8       26.2   7.7     3.9          23       92
+ 3   18421337 30000484        1.3       31    30.1     2            28      101
+ 4   12207593 30000646        1         38.8   8.3     4.1          27      102
+ 5   12980335 30001148        0.9       38.6   6.8     4.6          31      101
+ 6   12168737 30001336        1.7       34.2  24.7    NA            24       97
+ 7   17371178 30001396        1         43.7  12.5    NA            27      100
+ 8   16513856 30001446        2.9       23.6  14       2.3          17      102
+ 9   17461994 30001471        0.9       45.7   7.2     3.9          23      106
+10   10656173 30001555       NA         29.4  13.9     3.3          23      108
+# ℹ 88,089 more rows
+# ℹ 3 more variables: glucose &lt;dbl&gt;, potassium &lt;dbl&gt;, sodium &lt;dbl&gt;</code></pre>
+</div>
+</div>
+<p>yay!</p>
 <hr>
 </section>
 <section id="q6-vitals-from-charted-events" class="level2">
 <h2 class="anchored" data-anchor-id="q6-vitals-from-charted-events">Q6 Vitals from Charted Events</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb118"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb118-1"><a href="#cb118-1" aria-hidden="true" tabindex="-1"></a><span class="ex">gzcat</span> <span class="op">&lt;</span> ~/mimic/icu/chartevents.csv.gz <span class="kw">|</span> <span class="fu">head</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb124"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb124-1"><a href="#cb124-1" aria-hidden="true" tabindex="-1"></a><span class="ex">gzcat</span> <span class="op">&lt;</span> ~/mimic/icu/chartevents.csv.gz <span class="kw">|</span> <span class="fu">head</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>subject_id,hadm_id,stay_id,caregiver_id,charttime,storetime,itemid,value,valuenum,valueuom,warning
 10000032,29079034,39553978,18704,2180-07-23 12:36:00,2180-07-23 14:45:00,226512,39.4,39.4,kg,0
@@ -1124,7 +1196,7 @@ date (1): dod
 </div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb120"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb120-1"><a href="#cb120-1" aria-hidden="true" tabindex="-1"></a><span class="ex">gzcat</span> <span class="op">&lt;</span> ~/mimic/icu/d_items.csv.gz <span class="kw">|</span> <span class="fu">head</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb126"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb126-1"><a href="#cb126-1" aria-hidden="true" tabindex="-1"></a><span class="ex">gzcat</span> <span class="op">&lt;</span> ~/mimic/icu/d_items.csv.gz <span class="kw">|</span> <span class="fu">head</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>itemid,label,abbreviation,linksto,category,unitname,param_type,lownormalvalue,highnormalvalue
 220001,Problem List,Problem List,chartevents,General,,Text,,

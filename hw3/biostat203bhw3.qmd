@@ -481,7 +481,60 @@ gzcat < ~/mimic/hosp/labevents.csv.gz | head
 gzcat < ~/mimic/hosp/d_labitems.csv.gz | head
 ```
 
-RETRIEVE A SUBSET! DO THIS!
+```{r}
+labevents <- open_dataset("labevents_pq")
+
+labs_needed <- c(
+50862,50912,50971,
+50983,50902,50882,
+51221,51301,50931
+)
+
+labs_small <- labevents |>
+  filter(itemid %in% labs_needed) |>
+  select(subject_id, itemid, storetime, valuenum) |>
+  collect()
+```
+
+```{r}
+labs_last <- labs_small |>
+  inner_join(icustays_tble, by="subject_id") |>
+  filter(storetime <= intime) |>
+  group_by(stay_id,itemid) |>
+  slice_max(storetime,n=1) |>
+  ungroup()
+
+```
+
+```{r}
+labs_named <- labs_last |>
+  mutate(
+    lab = case_when(
+      itemid == 50862 ~ "albumin",
+      itemid == 50912 ~ "creatinine",
+      itemid == 50971 ~ "potassium",
+      itemid == 50983 ~ "sodium",
+      itemid == 50902 ~ "chloride",
+      itemid == 50882 ~ "bicarbonate",
+      itemid == 51221 ~ "hematocrit",
+      itemid == 51301 ~ "wbc",
+      itemid == 50931 ~ "glucose"
+    )
+  )
+labevents_tble <- labs_named |>
+  select(subject_id, stay_id, lab, valuenum) |>
+  tidyr::pivot_wider(
+    names_from = lab,
+    values_from = valuenum,
+    values_fn = mean
+  )
+```
+
+```{r}
+labevents_tble
+```
+
+yay!
 
 ------------------------------------------------------------------------
 
