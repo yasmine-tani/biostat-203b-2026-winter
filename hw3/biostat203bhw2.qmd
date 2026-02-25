@@ -1,0 +1,354 @@
+---
+title: "biostat203bhw2"
+format: html
+editor: visual
+author: Yasmine Tani; UID 406579988
+---
+
+```{r}
+sessionInfo()
+```
+
+```{r}
+#loading libraries
+library(arrow)
+library(data.table)
+library(duckdb)
+library(memuse)
+library(pryr)
+library(R.utils)
+library(tidyverse)
+```
+
+```{r}
+memuse::Sys.meminfo()
+```
+
+```{bash}
+ls -l ~/mimic/hosp/
+```
+
+```{bash}
+ls -l ~/mimic/icu/
+```
+
+## Q1 read.csv (base R) vs read_csv (tidyverse) vs fread(data.table)
+
+### 1.1 Speed, Memory, and Data Types
+
+```{r}
+#this is the speed of the run time for read.csv
+system.time(function1 <-read.csv("mimic/hosp/admissions.csv.gz"))
+
+#now the memory usage of read.csv
+pryr::object_size(function1)
+
+#let me check the class too for later
+class(function1)
+
+```
+
+Read.csv has a run time of 4.428 seconds and utilized 200.10 MB of memory. Produces a data frame.
+
+```{r}
+# the speed for read_csv
+system.time(function2 <-read_csv("mimic/hosp/admissions.csv.gz"))
+
+#memory usage of read_csv
+pryr::object_size(function2)
+class(function2)
+```
+
+Read_csv has a run time of 0.367 seconds and utilized 70.02 MB of memory. Produces a tibble.
+
+```{r}
+# run time for fread
+system.time(function3 <-fread("mimic/hosp/admissions.csv.gz"))
+
+#memory usage of fread
+pryr::object_size(function3)
+class(function3)
+```
+
+Fread has a run time of 0.259 seconds and utilized 63.47 MB of memory. Produces a data frame.
+
+Fread is the fastest function with an elapsed time of 0.259 seconds in comparison to 0.367 and 4.428 seconds. fread and read.csv produce data frames while read_csv produces a tibble with tidyverse.
+
+Read_csv automatically detects datatime for time columns but read.csv usually reads them as characters.
+
+### 1.2 User-supplied data types
+
+ok so if i dont indicate column type, R will scan the first 1000 rows of my file and take a guess as to what my structure is, including using labels like emergency as character strings which takes up a lot of memory so i should explicitly tell R what to expect
+
+```{r}
+#i honeslty want to see what it "guessed" previously first
+spec(function2)
+```
+
+yep so lots of memory-draining assumptions that we want to optimize....
+
+so numbers without decimals (like the IDs), I will make integers. categories (like marital status and race), I will make categories.
+
+```{r}
+system.time(
+  optimizeddata <-read_csv("mimic/hosp/admissions.csv.gz",
+        col_types = cols(
+        #categories
+        admission_type = col_factor(),
+        admission_location = col_factor(),
+        discharge_location = col_factor(),
+        insurance = col_factor(),
+        language = col_factor(),
+        marital_status = col_factor(),
+        race = col_factor(),
+        
+        #integer vibes
+        subject_id = col_integer(),
+        hadm_id = col_integer(),
+        hospital_expire_flag = col_integer(),
+        
+        #the rest were guessed right so will leave them
+        .default = col_guess()
+        )
+    )
+)
+pryr::object_size(optimizeddata)
+```
+
+The run time went from 0.41 seconds to 0.341 seconds so it did not change by much but went down a little. The memory of the resulting tibble uses 48.19 MB (less than 50 MB).
+
+------------------------------------------------------------------------
+
+## Q2 Ingest Big Data Files
+
+```{bash}
+ls -l ~/mimic/hosp/labevents.csv.gz
+```
+
+```{bash}
+zcat < ~/mimic/hosp/labevents.csv.gz | head -10
+```
+
+ok so now try to ingest this way bigger file with read_csv
+
+### Q 2.1 Ingesting by read_csv
+
+```{r}
+#| cache: true
+#| eval: true
+
+#read_csv("mimic/hosp/labevents.csv.gz")
+
+#commented out because rendering was taking forever (as expected in instructions)
+```
+
+TOOK OVER 3 MINUTES! ABORTED!
+
+------------------------------------------------------------------------
+
+### Q 2.2 Ingesting Selected Columns
+
+```{r}
+#| cache: true
+#| eval: true
+
+read_csv("mimic/hosp/labevents.csv.gz",
+  col_select =c(subject_id,itemid,charttime,valuenum))
+
+```
+
+It did ingest, though it took a significant amount of time.
+
+------------------------------------------------------------------------
+
+### Q 2.3 Ingesting a subset
+
+```{r}
+# ingesting subset of labevents.csv.gz
+
+labitems <- c(50862, 50912, 50971, 50983, 50902, 
+              50882, 51221, 51301, 50931)
+
+items_string <- paste(labitems, collapse = "|")
+
+
+#filtering on columns
+cmd <- paste0(
+  "zcat < ~/mimic/hosp/labevents.csv.gz | ",
+  "awk -F, 'BEGIN {OFS=\",\"} {if (NR==1 || $5 ~ /^(", 
+  items_string, 
+  ")$/) print $2, $5, $7, $10}' | ",
+  "gzip > labevents_filtered.csv.gz"
+)
+# saving this new file so we dont save huge original
+if (!file.exists("labevents_filtered.csv.gz")) {
+  system(cmd)
+}
+
+# ingestion time of new file??
+system.time({
+  labevents_subset <- read_csv("labevents_filtered.csv.gz",
+    col_types = cols(
+      subject_id = col_integer(),
+      itemid = col_integer(),
+      charttime = col_datetime(),
+      valuenum = col_double()
+    )
+  )
+})
+
+# results?
+labevents_subset %>%
+  arrange(subject_id, charttime, itemid) %>%
+  head(10)
+
+# header
+system("zcat < labevents_filtered.csv.gz | tail -n +2 | wc -l")
+```
+
+It takes 4.328 seconds for read_csv to ingest the filtered csv.gz file. There are 33712352 lines in this new file!
+
+------------------------------------------------------------------------
+
+### Q 2.4 Ingest by Apache Arrow
+
+```{r}
+# ok so here goes our huge file
+if (!file.exists("labevents.csv")) {
+  system("zcat < ~/mimic/hosp/labevents.csv.gz > labevents.csv")
+}
+
+#same items as above
+labitems <- c(50862, 50912, 50971, 50983, 50902, 
+              50882, 51221, 51301, 50931)
+
+
+#ok now we are using arrow
+system.time({
+  arrow_subset <- arrow::open_dataset("labevents.csv", format = "csv") %>%
+    dplyr::select(subject_id, itemid, charttime, valuenum) %>%
+    dplyr::filter(itemid %in% labitems) %>%
+    collect()
+})
+
+#results
+dim(arrow_subset)
+head(arrow_subset)
+```
+
+Apache arrow organizes data by columns, not by rows and creates a standard format that every language can understand (no need to convert between R, Python, etc.). This allows for extremely fast data scanning and no need for data duplicating.
+
+------------------------------------------------------------------------
+
+### Q 2.5 Compress to Parquet format
+
+```{r}
+#parquetttt
+
+labitems <- c(50862, 50912, 50971, 50983, 50902, 
+              50882, 51221, 51301, 50931)
+
+
+#converting CSV to parquet
+if (!file.exists("labevents.parquet")) {
+  csv_ds <- arrow::open_dataset("labevents.csv", format = "csv")
+  arrow::write_dataset(csv_ds, "labevents.parquet", format = "parquet")
+}
+
+#size of parquet files?
+system("du -sh labevents.parquet")
+
+#ingest time???
+system.time({
+  parquet_subset <- arrow::open_dataset("labevents.parquet") %>%
+    dplyr::select(subject_id, itemid, charttime, valuenum) %>%
+    dplyr::filter(itemid %in% labitems) %>%
+    collect()
+})
+
+#results
+dim(parquet_subset)
+head(parquet_subset)
+
+```
+
+Ok so parquet format saves data vertically (by column) instead of horizontally, essentially putting columns into their own boxes. So you can grab one box and ignore the rest making it faster to handle.
+
+------------------------------------------------------------------------
+
+### Q 2.6 DuckDB
+
+```{r}
+
+labitems <- c(50862, 50912, 50971, 50983, 50902, 
+              50882, 51221, 51301, 50931)
+
+#DUCKDBBBB
+system.time({
+  duckdb_subset <- arrow::open_dataset("labevents.parquet") %>%
+    arrow::to_duckdb() %>%
+    dplyr::select(subject_id, itemid, charttime, valuenum) %>%
+    dplyr::filter(itemid %in% labitems) %>%
+    dplyr::collect()
+})
+
+#results
+dim(duckdb_subset)
+head(duckdb_subset)
+```
+
+Ok so DuckDB is essentially a database management system that allows you to run code entirely serverless. It is also in-process so it is inside your R/Python/etc. session so you do not need a background program. This is very popular particulary for analytics.
+
+------------------------------------------------------------------------
+
+### Q 3 Ingest & filter chartevents.csv.gz
+
+```{r}
+#vitals we want
+chartitems <- c(220045, 220181, 220179, 223761, 220210)
+items_string <- paste(chartitems, collapse = "|")
+
+#filter command
+cmd <- paste0(
+  "zcat < ~/mimic/icu/chartevents.csv.gz | ",
+  "awk -F, 'BEGIN {OFS=\",\"} {if (NR==1 || $7 ~ /^(", 
+  items_string, 
+  ")$/) print $1, $5, $7, $9}' | ",
+  "gzip > chartevents_filtered.csv.gz"
+)
+
+#running it
+system.time(system(cmd))
+
+#load into r
+chartevents_subset <- read_csv("chartevents_filtered.csv.gz",
+  col_types = cols(
+    subject_id = col_integer(),
+    charttime = col_datetime(),
+    itemid = col_integer(),
+    valuenum = col_double()
+  )
+)
+
+#results
+dim(chartevents_subset)
+head(chartevents_subset)
+```
+
+------------------------------------------------------------------------
+
+30195426 rows
+
+### Q 4 AI Assistant
+
+I use Gemini pro because students are awarded one year of pro, and I find that it helps me significantly when I need a concept explained or when I am stuck/have a bug. They certainly improve my productivity.
+
+![](images/clipboard-2160826793.png)
+
+Here, I was stuck on how to set up my models with the IDs connecting to vital signs. It just gave me random numbers associated with vitals that I was not utilizing in the problem:
+
+![](images/clipboard-1643008751.png)
+
+This time, it suspected the position of these variables based off of no prior context on where they were in my data, and it was incorrect.
+
+In all honesty, those were the only errors I had this time around, though I did have more. I ask very specific questions, so I did not see more than 2 significant errors.
