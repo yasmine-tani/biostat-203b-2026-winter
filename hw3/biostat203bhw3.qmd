@@ -12,7 +12,7 @@ sessionInfo()
 ```
 
 ```{r}
-#loading necessary libraries
+# loading necessary libraries
 library(arrow)
 library(gtsummary)
 library(memuse)
@@ -32,20 +32,23 @@ memuse::Sys.meminfo()
 ### 1.1 ADT History (Admission-Discharge-Transfer)
 
 ```{r}
-#patient dem for title, have to compute age manually according to TA
+# patient dem for title, have to compute age manually according to TA
 patient_info <- read_csv("mimic/hosp/patients.csv.gz",
-            col_select = c(subject_id, anchor_age, anchor_year, gender)) |> 
+  col_select = c(subject_id, anchor_age, anchor_year, gender)
+) |>
   filter(subject_id == 10063848)
 
-#need admit time to do that
+# need admit time to do that
 admission_info <- read_csv("mimic/hosp/admissions.csv.gz",
-                           col_select = c(subject_id, admittime)) |> 
+  col_select = c(subject_id, admittime)
+) |>
   filter(subject_id == 10063848)
 
-#AGE
-patient_real_age <- left_join(patient_info, admission_info, 
-                        by = "subject_id") |>mutate(calculated_age = anchor_age 
-                                        + (year(admittime) - anchor_year))
+# AGE
+patient_real_age <- left_join(patient_info, admission_info,
+  by = "subject_id"
+) |> mutate(calculated_age = anchor_age
++ (year(admittime) - anchor_year))
 
 print(patient_real_age)
 ```
@@ -53,10 +56,11 @@ print(patient_real_age)
 Ok, so patient 10063848 is a 75 year old Female.
 
 ```{r}
-#what about their race tho
+# what about their race tho
 patient_demographic <- read_csv("mimic/hosp/admissions.csv.gz",
-    col_select = c(subject_id,race)) |>
-       filter(subject_id ==10063848)
+  col_select = c(subject_id, race)
+) |>
+  filter(subject_id == 10063848)
 print(patient_demographic)
 ```
 
@@ -85,22 +89,22 @@ The patient was admitted 3 separate times, so I selected the first 3 printed and
 So seq1 is "Intestinal adhesions \[bands\] with obstruction (postinfection)", seq2 is "Acute respiratory failure with hypoxia" and seq3 is "Von Willebrand disease."
 
 ```{r}
-transfer_information <-read_csv("mimic/hosp/transfers.csv.gz") |>
+transfer_information <- read_csv("mimic/hosp/transfers.csv.gz") |>
   filter(subject_id == 10063848)
 
 print(transfer_information)
 ```
 
 ```{r}
-#using parquet generated in hw2
+# using parquet generated in hw2
 patient_labs <- arrow::open_dataset("labevents_pq") |>
   filter(subject_id == 10063848) |>
   collect()
 print(patient_labs)
 
 # what we will use for charttime
-#keep all admittance data here becuase we want patient's entire trajectory
-#only filtered when we needed only 3 top diagnoses
+# keep all admittance data here becuase we want patient's entire trajectory
+# only filtered when we needed only 3 top diagnoses
 ```
 
 ```{r}
@@ -109,21 +113,24 @@ transfer_information <- transfer_information |>
 
 print(transfer_information)
 
-#Yay! Added ICU column
+# Yay! Added ICU column
 ```
 
 ```{r}
-#similar left join as patient diagnoses but with procedures
+# similar left join as patient diagnoses but with procedures
 patient_procedures <- read_csv("mimic/hosp/procedures_icd.csv.gz") |>
   filter(subject_id == 10063848)
 
-procedure_descriptions <-read_csv("mimic/hosp/d_icd_procedures.csv.gz") 
+procedure_descriptions <- read_csv("mimic/hosp/d_icd_procedures.csv.gz")
 
 patient_comp_procedures <- left_join(patient_procedures, procedure_descriptions,
-                   by = c("icd_code", "icd_version"))
+  by = c("icd_code", "icd_version")
+)
 
 print(patient_comp_procedures)
 ```
+
+This is the comprehensive list of the procedures that this patient received AND their descriptions now added on as well.
 
 ```{r}
 # 1. Fix the procedure dates and shorten titles FIRST
@@ -137,7 +144,7 @@ patient_comp_procedures <- patient_comp_procedures |>
 ```{r}
 # THE PLOT! with all the combined data!
 trajectory_plot <- ggplot() +
-  # Layer 1: ADT history 
+  # Layer 1: ADT history
   geom_segment(
     data = transfer_information |> filter(eventtype != "discharge"),
     mapping = aes(
@@ -146,18 +153,18 @@ trajectory_plot <- ggplot() +
       y = "ADT",
       yend = "ADT",
       color = careunit,
-      linewidth = str_detect(careunit, "ICU|CCU") 
+      linewidth = str_detect(careunit, "ICU|CCU")
     )
   ) +
-  # Layer 2: Lab Events 
+  # Layer 2: Lab Events
   geom_point(
     data = patient_labs,
     mapping = aes(x = charttime, y = "Lab"),
-    shape = 3, 
+    shape = 3,
     size = 2,
-    alpha = 0.5 
+    alpha = 0.5
   ) +
-  # Layer 3: Procedures 
+  # Layer 3: Procedures
   geom_point(
     data = patient_comp_procedures,
     mapping = aes(x = charttime, y = "Procedure", shape = short_title),
@@ -168,19 +175,19 @@ trajectory_plot <- ggplot() +
     title = "Patient 10063848, F, 75 years old, white",
     subtitle = "Intestinal adhesions [bands] with obstruction(postinfection)
 Acute respiratory failure with hypoxia
-Von Willebrand disease", 
+Von Willebrand disease",
     x = "Calendar Time",
-    y = NULL, 
+    y = NULL,
     color = "Care Unit",
     shape = "Procedure"
   ) +
   guides(linewidth = "none") +
-  theme_bw() 
+  theme_bw()
 
 print(trajectory_plot)
 ```
 
-**DO THIS: For reproducibility, make the Parquet folder `labevents_pq` available at the current working directory `hw3`, for example, by a symbolic link. Make your code reproducible!!!!!!!**
+Here, we can see the patients age, race and number as well as the top 3 diagnoses at the top, the procedures received, and where the patient was (ICU, trauma,etc.). This is all organized as a function of calendar time.
 
 ------------------------------------------------------------------------
 
@@ -195,7 +202,7 @@ icu_stays <- transfer_information |>
   mutate(stay_id = row_number())
 
 print(icu_stays)
-#we had already filtered icu earlier so need to extract that here
+# we had already filtered icu earlier so need to extract that here
 ```
 
 ```{r, cache=TRUE}
@@ -209,7 +216,7 @@ patient_vitals <- read_csv(
     valuenum
   )
 ) |>
-filter(subject_id == 10063848)
+  filter(subject_id == 10063848)
 ```
 
 ```{r, cache=TRUE}
@@ -223,40 +230,40 @@ vital_dict <- read_csv(
 )
 
 patient_vitals <- patient_vitals |>
-left_join(vital_dict,by="itemid")
+  left_join(vital_dict, by = "itemid")
 ```
 
 ```{r}
 patient_vitals <- patient_vitals |>
-filter(
-abbreviation %in%
-c("HR","NBPs","NBPd","RR","Temperature")
-)
+  filter(
+    abbreviation %in%
+      c("HR", "NBPs", "NBPd", "RR", "Temperature")
+  )
 ```
 
 ```{r}
 icu_stays <- transfer_information |>
-filter(is_icu=="Yes") |>
-select(
-hadm_id,
-intime,
-outtime
-) |>
-mutate(stay_id=row_number())
+  filter(is_icu == "Yes") |>
+  select(
+    hadm_id,
+    intime,
+    outtime
+  ) |>
+  mutate(stay_id = row_number())
 ```
 
 ```{r}
 icu_vitals <- patient_vitals |>
-inner_join(icu_stays,by="hadm_id") |>
-filter(
-charttime>=intime,
-charttime<=outtime
-)
+  inner_join(icu_stays, by = "hadm_id") |>
+  filter(
+    charttime >= intime,
+    charttime <= outtime
+  )
 ```
 
 ```{r}
 icu_vitals <- icu_vitals |>
-mutate(stay_id = as.character(stay_id))
+  mutate(stay_id = as.character(stay_id))
 ggplot(
   icu_vitals,
   aes(
@@ -265,20 +272,22 @@ ggplot(
     color = abbreviation
   )
 ) +
-geom_line() +
-geom_point() +
-facet_grid(
-  abbreviation ~ stay_id,
-  scales = "free_y"
-) +
-labs(
-  title = "Patient 10063848 ICU stays - Vitals",
-  x = "Calendar Time",
-  y = NULL,
-  color = "Vital"
-) +
-theme_bw()
+  geom_line() +
+  geom_point() +
+  facet_grid(
+    abbreviation ~ stay_id,
+    scales = "free_y"
+  ) +
+  labs(
+    title = "Patient 10063848 ICU stays - Vitals",
+    x = "Calendar Time",
+    y = NULL,
+    color = "Vital"
+  ) +
+  theme_bw()
 ```
+
+Ok so to create this we compiled the patient's vitals, the time of their stays, and the changes in their vitals over time, and this is all organized as a function of calendar time.
 
 ------------------------------------------------------------------------
 
@@ -292,7 +301,7 @@ gzcat < ~/mimic/icu/icustays.csv.gz | head
 
 ```{r}
 icustays_tble <- read_csv(
-"~/mimic/icu/icustays.csv.gz"
+  "~/mimic/icu/icustays.csv.gz"
 )
 
 icustays_tble
@@ -308,16 +317,16 @@ There are 65,366 unique subject ids.
 
 ```{r}
 icustays_tble |>
-count(subject_id) |>
-summarise(max_stays = max(n))
+  count(subject_id) |>
+  summarise(max_stays = max(n))
 ```
 
 Yes, a subject can have more that one ICU stay. This is the mac number of stays for one person.
 
 ```{r}
 icustays_tble |>
-count(subject_id) |>
-count(n)
+  count(subject_id) |>
+  count(n)
 ```
 
 The first table shows the maximum number of ICU stays for a single subject.\
@@ -326,16 +335,16 @@ The second table shows how many subjects had each number of ICU stays.
 
 ```{r}
 stays_per_subject <- icustays_tble |>
-count(subject_id)
+  count(subject_id)
 
 ggplot(stays_per_subject, aes(x = n)) +
-geom_histogram(binwidth = 1, boundary = 0) +
-labs(
-x = "Number of ICU stays per subject",
-y = "Number of subjects",
-title = "Distribution of ICU stays per subject"
-) +
-theme_bw()
+  geom_histogram(binwidth = 1, boundary = 0) +
+  labs(
+    x = "Number of ICU stays per subject",
+    y = "Number of subjects",
+    title = "Distribution of ICU stays per subject"
+  ) +
+  theme_bw()
 ```
 
 This graph shows the distribution of ICU stays per subject. Most subjects have one ICU stay, with fewer subjects having multiple stays.
@@ -353,7 +362,7 @@ gzcat < ~/mimic/hosp/admissions.csv.gz | head
 
 ```{r}
 admissions_tble <- read_csv(
-"~/mimic/hosp/admissions.csv.gz"
+  "~/mimic/hosp/admissions.csv.gz"
 )
 
 admissions_tble
@@ -373,7 +382,6 @@ ggplot(admissions_per_patient, aes(x = n)) +
     title = "Admissions per patient"
   ) +
   theme_bw()
-
 ```
 
 Most patients have only one hospital admission. A smaller number have multiple admissions, and very few patients have many admissions.
@@ -404,7 +412,6 @@ admissions_tble |>
     title = "Hospital admissions by minute"
   ) +
   theme_bw()
-
 ```
 
 Admission minutes show spikes at round values such as 0 and 30. This suggests admission times are often recorded approximately rather than exactly( and around 45).
@@ -422,7 +429,6 @@ admissions_tble |>
     title = "Length of hospital stay"
   ) +
   theme_bw()
-
 ```
 
 Most hospital stays are short, with fewer long stays. The distribution is right-skewed, meaning a small number of patients stay much longer than average.
@@ -439,7 +445,7 @@ zcat < ~/mimic/hosp/patients.csv.gz | head
 
 ```{r}
 patients_tble <- read_csv(
-"~/mimic/hosp/patients.csv.gz"
+  "~/mimic/hosp/patients.csv.gz"
 )
 
 patients_tble
@@ -468,7 +474,6 @@ patients_tble |>
     x = "Age",
     y = "Count"
   )
-
 ```
 
 The patient population in this dataset is relatively balanced between genders, with neither group significantly outnumbering the other.T here is a huge spike on the far left (younger patients) and another broad hump in the middle-age to elderly range. The first spike is likely newborns and the second spike is in 50-80.
@@ -489,9 +494,9 @@ gzcat < ~/mimic/hosp/d_labitems.csv.gz | head
 labevents <- open_dataset("labevents_pq")
 
 labs_needed <- c(
-50862, 50912, 50971,
-50983, 50902, 50882,
-51221, 51301, 50931
+  50862, 50912, 50971,
+  50983, 50902, 50882,
+  51221, 51301, 50931
 )
 
 labs_small <- labevents |>
@@ -502,12 +507,11 @@ labs_small <- labevents |>
 
 ```{r cache=TRUE}
 labs_last <- labs_small |>
-  inner_join(icustays_tble, by="subject_id") |>
+  inner_join(icustays_tble, by = "subject_id") |>
   filter(storetime <= intime) |>
-  group_by(stay_id,itemid) |>
-  slice_max(storetime,n=1) |>
+  group_by(stay_id, itemid) |>
+  slice_max(storetime, n = 1) |>
   ungroup()
-
 ```
 
 ```{r}
@@ -594,7 +598,6 @@ head(chartevents_tble)
 ```
 
 ```{r cache=TRUE}
-
 chartevents_tble <- chartevents_tble |>
   rename(
     heart_rate = `220045`,
@@ -613,22 +616,18 @@ chartevents_tble
 
 ```{r cache=TRUE}
 mimic_icu_cohort <- icustays_tble |>
-
   left_join(
     admissions_tble,
     by = c("subject_id", "hadm_id")
   ) |>
-
   left_join(
     patients_tble,
     by = "subject_id"
   ) |>
-
   left_join(
     labevents_tble,
     by = c("subject_id", "stay_id")
   ) |>
-
   left_join(
     chartevents_tble,
     by = "stay_id"
@@ -638,3 +637,109 @@ mimic_icu_cohort
 ```
 
 ## Q8 **Exploratory data analysis (EDA)**
+
+```{r}
+# LOS vs gender
+ggplot(mimic_icu_cohort, aes(x = gender, y = los)) +
+  geom_boxplot()
+
+# LOS vs race
+ggplot(mimic_icu_cohort, aes(x = race, y = los)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# LOS vs insurance
+ggplot(mimic_icu_cohort, aes(x = insurance, y = los)) +
+  geom_boxplot()
+
+# LOS vs marital_status
+ggplot(mimic_icu_cohort, aes(x = marital_status, y = los)) +
+  geom_boxplot()
+```
+
+Ok so as we can see the genders seem to be decently fairly distributed. In terms of race, there seem to be more patients that are African American, white, and puerto rican; however, long term, we would likley need to combine those categories. Actually, I will do that in the next cell. Most patients are on medicaid or medicare which makes sense in terms of the age distributions we saw earlier, and there are more patients that are single and married than other marital statuses.
+
+```{r}
+mimic_icu_cohort <- mimic_icu_cohort |>
+  mutate(
+    race_grouped = case_when(
+      grepl("WHITE", race) ~ "White",
+      grepl("BLACK", race) ~ "Black",
+      grepl("ASIAN", race) ~ "Asian",
+      grepl("HISPANIC|LATINO", race) ~ "Hispanic",
+      grepl("NATIVE", race) ~ "Native American",
+      TRUE ~ "Other"
+    )
+  )
+
+ggplot(mimic_icu_cohort, aes(x = race_grouped, y = los)) +
+  geom_boxplot() +
+  theme_minimal()
+```
+
+Ok now that these are grouped we can see that there are definitely more white patients than any other racial group.
+
+------------------------------------------------------------------------
+
+```{r}
+# now looking at the labs
+# we already filtered it to be last lab before icu so
+ggplot(mimic_icu_cohort, aes(x = creatinine, y = los)) +
+  geom_point(alpha = 0.3)
+```
+
+```{r}
+ggplot(mimic_icu_cohort, aes(x = sodium, y = los)) +
+  geom_point(alpha = 0.3)
+```
+
+Scatterplots of laboratory values such as creatinine and sodium versus length of ICU stay show no clear linear relationship. Most ICU stays are short regardless of lab values, although extreme lab values seemmm occasionally associated with longer stays.
+
+------------------------------------------------------------------------
+
+```{r}
+# for vitals we also already filtered to first measurement
+# already
+ggplot(mimic_icu_cohort, aes(x = heart_rate, y = los)) +
+  geom_point(alpha = 0.3)
+```
+
+```{r}
+ggplot(mimic_icu_cohort, aes(x = first_careunit, y = los)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+The MICU and SICU appear to have longer ICU stays while medicine and intermediate units seem to have shorter stays.
+
+------------------------------------------------------------------------
+
+I used the standard chat-GPT as well as Gemini Pro- thinking mode to assist with this assignment when I got stuck. I typically utilize them when I get bugs or am confused on direction with how to approach a problem. They certainly help with productivity and I provide substantial context; my one issue is when they do not have context and *assume* things that are incorrect.
+
+For example, I needed help optimizing use of the chart events parquet, which it decided was not necessary:
+
+"Because earlier we discussed making chartevents parquet as an optimization.
+
+That was optional.
+
+Not required."
+
+------------------------------------------------------------------------
+
+Additionally, the first time I rendered and it took a long amount of time, I asked Chat if this was a normal amount of time to which it told me to :
+
+![](images/clipboard-3624390305.png){width="180"}
+
+which would ruin all the progress....
+
+------------------------------------------------------------------------
+
+Stylistically, I also have issues in general where the code that is generated often does not adhere to the traditionally style expected when coding in R and I always have to fix spacing, order of operations, etc.
+
+------------------------------------------------------------------------
+
+When uploading to github, it would make fake directory paths for me to upload my homework instead of just asking me directly as well ...
+
+Besides that, I provide a large amount of context so besides assuming variables which I always quickly pick up on, the logic has been pretty sound.
+
+------------------------------------------------------------------------
