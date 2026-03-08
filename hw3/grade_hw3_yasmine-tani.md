@@ -1,13 +1,13 @@
 ### Overall Grade: 
-240/300
+270/300
 
 ### Quality of report: 
--20/10
+10/10
 
 - Note:
   - status=OK
-  - late_days=3
-  - late_penalty=30
+  - late_days=0
+  - late_penalty=0
   - needs_manual_late_check=0
   - has_html=1
   - has_qmd=1
@@ -16,6 +16,7 @@
   - tag_used=hw3
   - tag_datetime=2026-02-25 16:00:48 -0800
   - checked_ref=refs/tags/hw3
+  - extension_note=PERMITTED_EXTENSION (late penalty waived)
 
 ### Completeness / each question score / feedback: 
 220/250
