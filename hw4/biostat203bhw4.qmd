@@ -69,8 +69,56 @@ admissions_tble <- tbl(con_bq, "admissions") |>
   print(width = Inf)
 ```
 
+### **Q1.4 Patients Data**
+
 ```{r}
 patients_tble <- tbl(con_bq, "patients") |>
   arrange(subject_id) |>
   print(width = Inf)
+```
+
+### **Q1.5 LabEvents Data**
+
+```{r}
+labevents_tble <- tbl(con_bq, "labevents") %>%
+  # hw3 labs that we want
+  filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931)) %>%
+  # keep only subjects in icustays_tble
+  semi_join(icustays_tble, by = "subject_id") %>%
+  # join with icustays to get the intime 
+  left_join(
+    icustays_tble %>% select(subject_id, stay_id, intime), 
+    by = "subject_id"
+  ) %>%
+  # labs taken BEFORE ICU admission
+  filter(storetime <= intime) %>%
+  # very last measurement
+  group_by(subject_id, stay_id, itemid) %>%
+  slice_max(order_by = storetime, n = 1) %>%
+  ungroup() %>%
+
+  select(subject_id, stay_id, itemid, valuenum) %>%
+  # change itemid codes into column names
+  pivot_wider(names_from = itemid, values_from = valuenum) %>%
+
+  # making IDs the atcul lab names
+  rename(
+    creatinine = `50912`,
+    potassium  = `50971`,
+    sodium     = `50983`,
+    chloride   = `50902`,
+    bicarbonate = `50882`,
+    hematocrit = `51221`,
+    wbc        = `51301`,
+    glucose    = `50931`
+  ) %>%
+  arrange(subject_id, stay_id) %>%
+  collect() 
+```
+
+```{r}
+#antoinette advised we check space to ensure we did properly 
+nrow(labevents_tble)
+
+head(labevents_tble)
 ```
