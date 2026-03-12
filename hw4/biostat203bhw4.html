@@ -137,8 +137,8 @@ loaded via a namespace (and not attached):
 <div class="cell">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>memuse<span class="sc">::</span><span class="fu">Sys.meminfo</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Totalram:  24.000 GiB 
-Freeram:   79.828 MiB </code></pre>
+<pre><code>Totalram:   24.000 GiB 
+Freeram:   105.500 MiB </code></pre>
 </div>
 </div>
 <div class="cell">
@@ -439,7 +439,7 @@ ORDER BY is ignored in subqueries without LIMIT
 <span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(subject_id, stay_id, itemid) <span class="sc">|&gt;</span></span>
 <span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(charttime <span class="sc">==</span> <span class="fu">min</span>(charttime, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) <span class="sc">|&gt;</span></span>
 <span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(</span>
-<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">valuenum =</span> <span class="fu">mean</span>(valuenum, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), </span>
+<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">valuenum =</span> <span class="fu">mean</span>(valuenum, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
 <span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
 <span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
 <span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(<span class="at">names_from =</span> itemid, <span class="at">values_from =</span> valuenum) <span class="sc">|&gt;</span></span>
@@ -473,20 +473,18 @@ ORDER BY is ignored in subqueries without LIMIT
 <h3 class="anchored" data-anchor-id="q1.7-putting-things-together"><strong>Q1.7 Putting Things Together</strong></h3>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>mimic_icu_cohort <span class="ot">&lt;-</span> icustays_tble <span class="sc">|&gt;</span></span>
-<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>  <span class="co">#merging</span></span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>  <span class="co"># merging</span></span>
 <span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(admissions_tble, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"subject_id"</span>, <span class="st">"hadm_id"</span>)) <span class="sc">|&gt;</span></span>
 <span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(patients_tble, <span class="at">by =</span> <span class="st">"subject_id"</span>) <span class="sc">|&gt;</span></span>
-<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">collect</span>() <span class="sc">|&gt;</span></span>
-<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>  <span class="co"># adults only age calculation like b4 (tho i think boston is only adults but)</span></span>
-<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">age =</span> <span class="fu">year</span>(intime) <span class="sc">-</span> (anchor_year <span class="sc">-</span> anchor_age)) <span class="sc">|&gt;</span></span>
-<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(age <span class="sc">&gt;=</span> <span class="dv">18</span>) <span class="sc">|&gt;</span></span>
-<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a>  <span class="co"># merge w labevents and chartevents tables</span></span>
-<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(labevents_tble, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"subject_id"</span>, <span class="st">"stay_id"</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(chartevents_tble, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"subject_id"</span>, <span class="st">"stay_id"</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(subject_id, hadm_id, stay_id) <span class="sc">|&gt;</span></span>
-<span id="cb33-15"><a href="#cb33-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(<span class="at">width =</span> <span class="cn">Inf</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">collect</span>() <span class="sc">|&gt;</span></span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>  <span class="co"># adults only age calculation like b4 (tho i think boston is only adults but)</span></span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">age =</span> <span class="fu">year</span>(intime) <span class="sc">-</span> (anchor_year <span class="sc">-</span> anchor_age)) <span class="sc">|&gt;</span></span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(age <span class="sc">&gt;=</span> <span class="dv">18</span>) <span class="sc">|&gt;</span></span>
+<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>  <span class="co"># merge w labevents and chartevents tables</span></span>
+<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(labevents_tble, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"subject_id"</span>, <span class="st">"stay_id"</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(chartevents_tble, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"subject_id"</span>, <span class="st">"stay_id"</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(subject_id, hadm_id, stay_id) <span class="sc">|&gt;</span></span>
+<span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(<span class="at">width =</span> <span class="cn">Inf</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>Warning: ORDER BY is ignored in subqueries without LIMIT
 ℹ Do you need to move arrange() later in the pipeline or use window_order() instead?
@@ -616,49 +614,52 @@ ORDER BY is ignored in subqueries without LIMIT
 <span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(gtsummary)</span>
 <span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>mimic_icu_cohort <span class="ot">&lt;-</span> mimic_icu_cohort <span class="sc">|&gt;</span></span>
-<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># lump infrequent levels into other </span></span>
-<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="fu">across</span>(</span>
-<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">c</span>(first_careunit, last_careunit, admission_type, </span>
-<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a>      admission_location, discharge_location),</span>
-<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a>    <span class="sc">~</span> <span class="fu">fct_lump_n</span>(.x, <span class="at">n =</span> <span class="dv">4</span>, <span class="at">other_level =</span> <span class="st">"Other"</span>)</span>
-<span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a>  )) <span class="sc">|&gt;</span></span>
-<span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a>  <span class="co"># collapse race into 5 levels</span></span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="fu">across</span>(</span>
+<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">c</span>(</span>
+<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a>      first_careunit, last_careunit, admission_type,</span>
+<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a>      admission_location, discharge_location</span>
+<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a>    <span class="sc">~</span> <span class="fu">fct_lump_n</span>(.x, <span class="at">n =</span> <span class="dv">4</span>, <span class="at">other_level =</span> <span class="st">"Other"</span>)</span>
+<span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a>  )) <span class="sc">|&gt;</span></span>
 <span id="cb36-12"><a href="#cb36-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">race =</span> <span class="fu">fct_collapse</span>(race,</span>
-<span id="cb36-13"><a href="#cb36-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">WHITE    =</span> <span class="fu">grep</span>(<span class="st">"WHITE"</span>, <span class="fu">levels</span>(<span class="fu">as.factor</span>(race)), <span class="at">value =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb36-14"><a href="#cb36-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">BLACK    =</span> <span class="fu">grep</span>(<span class="st">"BLACK"</span>, <span class="fu">levels</span>(<span class="fu">as.factor</span>(race)), <span class="at">value =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb36-13"><a href="#cb36-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">WHITE =</span> <span class="fu">grep</span>(<span class="st">"WHITE"</span>, <span class="fu">levels</span>(<span class="fu">as.factor</span>(race)), <span class="at">value =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb36-14"><a href="#cb36-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">BLACK =</span> <span class="fu">grep</span>(<span class="st">"BLACK"</span>, <span class="fu">levels</span>(<span class="fu">as.factor</span>(race)), <span class="at">value =</span> <span class="cn">TRUE</span>),</span>
 <span id="cb36-15"><a href="#cb36-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">HISPANIC =</span> <span class="fu">grep</span>(<span class="st">"HISPANIC"</span>, <span class="fu">levels</span>(<span class="fu">as.factor</span>(race)), <span class="at">value =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb36-16"><a href="#cb36-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">ASIAN    =</span> <span class="fu">grep</span>(<span class="st">"ASIAN"</span>, <span class="fu">levels</span>(<span class="fu">as.factor</span>(race)), <span class="at">value =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb36-16"><a href="#cb36-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">ASIAN =</span> <span class="fu">grep</span>(<span class="st">"ASIAN"</span>, <span class="fu">levels</span>(<span class="fu">as.factor</span>(race)), <span class="at">value =</span> <span class="cn">TRUE</span>),</span>
 <span id="cb36-17"><a href="#cb36-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">other_level =</span> <span class="st">"Other"</span></span>
 <span id="cb36-18"><a href="#cb36-18" aria-hidden="true" tabindex="-1"></a>  )) <span class="sc">|&gt;</span></span>
-<span id="cb36-19"><a href="#cb36-19" aria-hidden="true" tabindex="-1"></a>  <span class="co"># create los_long variable</span></span>
-<span id="cb36-20"><a href="#cb36-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">los_long =</span> los <span class="sc">&gt;=</span> <span class="dv">2</span>) <span class="sc">|&gt;</span></span>
-<span id="cb36-21"><a href="#cb36-21" aria-hidden="true" tabindex="-1"></a>  <span class="co"># tbl_summary stratified by los_long</span></span>
-<span id="cb36-22"><a href="#cb36-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(los_long, first_careunit, last_careunit, admission_type, race, age, gender)</span>
+<span id="cb36-19"><a href="#cb36-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">los_long =</span> los <span class="sc">&gt;=</span> <span class="dv">2</span>)</span>
+<span id="cb36-20"><a href="#cb36-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-21"><a href="#cb36-21" aria-hidden="true" tabindex="-1"></a><span class="co"># re-save the file</span></span>
+<span id="cb36-22"><a href="#cb36-22" aria-hidden="true" tabindex="-1"></a><span class="fu">write_rds</span>(mimic_icu_cohort, <span class="st">"mimiciv_shiny/mimic_icu_cohort.rds"</span>)</span>
 <span id="cb36-23"><a href="#cb36-23" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb36-24"><a href="#cb36-24" aria-hidden="true" tabindex="-1"></a>mimic_icu_cohort <span class="sc">|&gt;</span></span>
-<span id="cb36-25"><a href="#cb36-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tbl_summary</span>(<span class="at">by =</span> los_long) <span class="sc">|&gt;</span></span>
-<span id="cb36-26"><a href="#cb36-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_p</span>() <span class="co"># add p-values to see if groups differ</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb36-25"><a href="#cb36-25" aria-hidden="true" tabindex="-1"></a>  <span class="co"># variables the proff showed</span></span>
+<span id="cb36-26"><a href="#cb36-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(los_long, first_careunit, last_careunit, admission_type, race, age, gender, marital_status, language, age) <span class="sc">|&gt;</span></span>
+<span id="cb36-27"><a href="#cb36-27" aria-hidden="true" tabindex="-1"></a>  <span class="co"># summary</span></span>
+<span id="cb36-28"><a href="#cb36-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tbl_summary</span>(<span class="at">by =</span> los_long) <span class="sc">|&gt;</span></span>
+<span id="cb36-29"><a href="#cb36-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_p</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>14 missing rows in the "los_long" column have been removed.</code></pre>
 </div>
 <div class="cell-output-display">
-<div id="asjoiemlgf" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#asjoiemlgf table {
+<div id="lxyyrsdhdo" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#lxyyrsdhdo table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#asjoiemlgf thead, #asjoiemlgf tbody, #asjoiemlgf tfoot, #asjoiemlgf tr, #asjoiemlgf td, #asjoiemlgf th {
+#lxyyrsdhdo thead, #lxyyrsdhdo tbody, #lxyyrsdhdo tfoot, #lxyyrsdhdo tr, #lxyyrsdhdo td, #lxyyrsdhdo th {
   border-style: none;
 }
 
-#asjoiemlgf p {
+#lxyyrsdhdo p {
   margin: 0;
   padding: 0;
 }
 
-#asjoiemlgf .gt_table {
+#lxyyrsdhdo .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -684,12 +685,12 @@ ORDER BY is ignored in subqueries without LIMIT
   border-left-color: #D3D3D3;
 }
 
-#asjoiemlgf .gt_caption {
+#lxyyrsdhdo .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#asjoiemlgf .gt_title {
+#lxyyrsdhdo .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -701,7 +702,7 @@ ORDER BY is ignored in subqueries without LIMIT
   border-bottom-width: 0;
 }
 
-#asjoiemlgf .gt_subtitle {
+#lxyyrsdhdo .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -713,7 +714,7 @@ ORDER BY is ignored in subqueries without LIMIT
   border-top-width: 0;
 }
 
-#asjoiemlgf .gt_heading {
+#lxyyrsdhdo .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -725,13 +726,13 @@ ORDER BY is ignored in subqueries without LIMIT
   border-right-color: #D3D3D3;
 }
 
-#asjoiemlgf .gt_bottom_border {
+#lxyyrsdhdo .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#asjoiemlgf .gt_col_headings {
+#lxyyrsdhdo .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -746,7 +747,7 @@ ORDER BY is ignored in subqueries without LIMIT
   border-right-color: #D3D3D3;
 }
 
-#asjoiemlgf .gt_col_heading {
+#lxyyrsdhdo .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -766,7 +767,7 @@ ORDER BY is ignored in subqueries without LIMIT
   overflow-x: hidden;
 }
 
-#asjoiemlgf .gt_column_spanner_outer {
+#lxyyrsdhdo .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -778,15 +779,15 @@ ORDER BY is ignored in subqueries without LIMIT
   padding-right: 4px;
 }
 
-#asjoiemlgf .gt_column_spanner_outer:first-child {
+#lxyyrsdhdo .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#asjoiemlgf .gt_column_spanner_outer:last-child {
+#lxyyrsdhdo .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#asjoiemlgf .gt_column_spanner {
+#lxyyrsdhdo .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -798,11 +799,11 @@ ORDER BY is ignored in subqueries without LIMIT
   width: 100%;
 }
 
-#asjoiemlgf .gt_spanner_row {
+#lxyyrsdhdo .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#asjoiemlgf .gt_group_heading {
+#lxyyrsdhdo .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -828,7 +829,7 @@ ORDER BY is ignored in subqueries without LIMIT
   text-align: left;
 }
 
-#asjoiemlgf .gt_empty_group_heading {
+#lxyyrsdhdo .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -843,15 +844,15 @@ ORDER BY is ignored in subqueries without LIMIT
   vertical-align: middle;
 }
 
-#asjoiemlgf .gt_from_md > :first-child {
+#lxyyrsdhdo .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#asjoiemlgf .gt_from_md > :last-child {
+#lxyyrsdhdo .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#asjoiemlgf .gt_row {
+#lxyyrsdhdo .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -870,7 +871,7 @@ ORDER BY is ignored in subqueries without LIMIT
   overflow-x: hidden;
 }
 
-#asjoiemlgf .gt_stub {
+#lxyyrsdhdo .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -883,7 +884,7 @@ ORDER BY is ignored in subqueries without LIMIT
   padding-right: 5px;
 }
 
-#asjoiemlgf .gt_stub_row_group {
+#lxyyrsdhdo .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -897,15 +898,15 @@ ORDER BY is ignored in subqueries without LIMIT
   vertical-align: top;
 }
 
-#asjoiemlgf .gt_row_group_first td {
+#lxyyrsdhdo .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#asjoiemlgf .gt_row_group_first th {
+#lxyyrsdhdo .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#asjoiemlgf .gt_summary_row {
+#lxyyrsdhdo .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -915,16 +916,16 @@ ORDER BY is ignored in subqueries without LIMIT
   padding-right: 5px;
 }
 
-#asjoiemlgf .gt_first_summary_row {
+#lxyyrsdhdo .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#asjoiemlgf .gt_first_summary_row.thick {
+#lxyyrsdhdo .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#asjoiemlgf .gt_last_summary_row {
+#lxyyrsdhdo .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -934,7 +935,7 @@ ORDER BY is ignored in subqueries without LIMIT
   border-bottom-color: #D3D3D3;
 }
 
-#asjoiemlgf .gt_grand_summary_row {
+#lxyyrsdhdo .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -944,7 +945,7 @@ ORDER BY is ignored in subqueries without LIMIT
   padding-right: 5px;
 }
 
-#asjoiemlgf .gt_first_grand_summary_row {
+#lxyyrsdhdo .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -954,7 +955,7 @@ ORDER BY is ignored in subqueries without LIMIT
   border-top-color: #D3D3D3;
 }
 
-#asjoiemlgf .gt_last_grand_summary_row_top {
+#lxyyrsdhdo .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -964,11 +965,11 @@ ORDER BY is ignored in subqueries without LIMIT
   border-bottom-color: #D3D3D3;
 }
 
-#asjoiemlgf .gt_striped {
+#lxyyrsdhdo .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#asjoiemlgf .gt_table_body {
+#lxyyrsdhdo .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -977,7 +978,7 @@ ORDER BY is ignored in subqueries without LIMIT
   border-bottom-color: #D3D3D3;
 }
 
-#asjoiemlgf .gt_footnotes {
+#lxyyrsdhdo .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -991,7 +992,7 @@ ORDER BY is ignored in subqueries without LIMIT
   border-right-color: #D3D3D3;
 }
 
-#asjoiemlgf .gt_footnote {
+#lxyyrsdhdo .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -1000,7 +1001,7 @@ ORDER BY is ignored in subqueries without LIMIT
   padding-right: 5px;
 }
 
-#asjoiemlgf .gt_sourcenotes {
+#lxyyrsdhdo .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1014,7 +1015,7 @@ ORDER BY is ignored in subqueries without LIMIT
   border-right-color: #D3D3D3;
 }
 
-#asjoiemlgf .gt_sourcenote {
+#lxyyrsdhdo .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -1022,72 +1023,72 @@ ORDER BY is ignored in subqueries without LIMIT
   padding-right: 5px;
 }
 
-#asjoiemlgf .gt_left {
+#lxyyrsdhdo .gt_left {
   text-align: left;
 }
 
-#asjoiemlgf .gt_center {
+#lxyyrsdhdo .gt_center {
   text-align: center;
 }
 
-#asjoiemlgf .gt_right {
+#lxyyrsdhdo .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#asjoiemlgf .gt_font_normal {
+#lxyyrsdhdo .gt_font_normal {
   font-weight: normal;
 }
 
-#asjoiemlgf .gt_font_bold {
+#lxyyrsdhdo .gt_font_bold {
   font-weight: bold;
 }
 
-#asjoiemlgf .gt_font_italic {
+#lxyyrsdhdo .gt_font_italic {
   font-style: italic;
 }
 
-#asjoiemlgf .gt_super {
+#lxyyrsdhdo .gt_super {
   font-size: 65%;
 }
 
-#asjoiemlgf .gt_footnote_marks {
+#lxyyrsdhdo .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#asjoiemlgf .gt_asterisk {
+#lxyyrsdhdo .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#asjoiemlgf .gt_indent_1 {
+#lxyyrsdhdo .gt_indent_1 {
   text-indent: 5px;
 }
 
-#asjoiemlgf .gt_indent_2 {
+#lxyyrsdhdo .gt_indent_2 {
   text-indent: 10px;
 }
 
-#asjoiemlgf .gt_indent_3 {
+#lxyyrsdhdo .gt_indent_3 {
   text-indent: 15px;
 }
 
-#asjoiemlgf .gt_indent_4 {
+#lxyyrsdhdo .gt_indent_4 {
   text-indent: 20px;
 }
 
-#asjoiemlgf .gt_indent_5 {
+#lxyyrsdhdo .gt_indent_5 {
   text-indent: 25px;
 }
 
-#asjoiemlgf .katex-display {
+#lxyyrsdhdo .katex-display {
   display: inline-flex !important;
   margin-bottom: 0.75em !important;
 }
 
-#asjoiemlgf div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+#lxyyrsdhdo div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
   height: 0px !important;
 }
 </style>
@@ -1310,6 +1311,239 @@ N = 46,337<span class="gt_footnote_marks" style="white-space:nowrap;font-style:i
 <td class="gt_row gt_center" headers="p.value"><br>
 </td>
 </tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="label">marital_status</td>
+<td class="gt_row gt_center" headers="stat_1"><br>
+</td>
+<td class="gt_row gt_center" headers="stat_2"><br>
+</td>
+<td class="gt_row gt_center" headers="p.value">0.002</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;DIVORCED</td>
+<td class="gt_row gt_center" headers="stat_1">3,555 (8.0%)</td>
+<td class="gt_row gt_center" headers="stat_2">3,377 (8.0%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;MARRIED</td>
+<td class="gt_row gt_center" headers="stat_1">21,344 (48%)</td>
+<td class="gt_row gt_center" headers="stat_2">20,557 (49%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;SINGLE</td>
+<td class="gt_row gt_center" headers="stat_1">14,039 (31%)</td>
+<td class="gt_row gt_center" headers="stat_2">12,745 (30%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;WIDOWED</td>
+<td class="gt_row gt_center" headers="stat_1">5,752 (13%)</td>
+<td class="gt_row gt_center" headers="stat_2">5,319 (13%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Unknown</td>
+<td class="gt_row gt_center" headers="stat_1">3,417</td>
+<td class="gt_row gt_center" headers="stat_2">4,339</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="label">language</td>
+<td class="gt_row gt_center" headers="stat_1"><br>
+</td>
+<td class="gt_row gt_center" headers="stat_2"><br>
+</td>
+<td class="gt_row gt_center" headers="p.value">&lt;0.001</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;American Sign Language</td>
+<td class="gt_row gt_center" headers="stat_1">34 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="stat_2">29 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Amharic</td>
+<td class="gt_row gt_center" headers="stat_1">9 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="stat_2">14 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Arabic</td>
+<td class="gt_row gt_center" headers="stat_1">62 (0.1%)</td>
+<td class="gt_row gt_center" headers="stat_2">87 (0.2%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Armenian</td>
+<td class="gt_row gt_center" headers="stat_1">13 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="stat_2">12 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Bengali</td>
+<td class="gt_row gt_center" headers="stat_1">12 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="stat_2">22 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Chinese</td>
+<td class="gt_row gt_center" headers="stat_1">611 (1.3%)</td>
+<td class="gt_row gt_center" headers="stat_2">550 (1.2%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;English</td>
+<td class="gt_row gt_center" headers="stat_1">43,483 (91%)</td>
+<td class="gt_row gt_center" headers="stat_2">41,563 (90%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;French</td>
+<td class="gt_row gt_center" headers="stat_1">14 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="stat_2">18 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Haitian</td>
+<td class="gt_row gt_center" headers="stat_1">252 (0.5%)</td>
+<td class="gt_row gt_center" headers="stat_2">375 (0.8%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Hindi</td>
+<td class="gt_row gt_center" headers="stat_1">21 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="stat_2">24 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Italian</td>
+<td class="gt_row gt_center" headers="stat_1">107 (0.2%)</td>
+<td class="gt_row gt_center" headers="stat_2">101 (0.2%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Japanese</td>
+<td class="gt_row gt_center" headers="stat_1">7 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="stat_2">5 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Kabuverdianu</td>
+<td class="gt_row gt_center" headers="stat_1">345 (0.7%)</td>
+<td class="gt_row gt_center" headers="stat_2">301 (0.7%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Khmer</td>
+<td class="gt_row gt_center" headers="stat_1">37 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="stat_2">50 (0.1%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Korean</td>
+<td class="gt_row gt_center" headers="stat_1">32 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="stat_2">40 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Modern Greek (1453-)</td>
+<td class="gt_row gt_center" headers="stat_1">88 (0.2%)</td>
+<td class="gt_row gt_center" headers="stat_2">102 (0.2%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Other</td>
+<td class="gt_row gt_center" headers="stat_1">153 (0.3%)</td>
+<td class="gt_row gt_center" headers="stat_2">152 (0.3%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Persian</td>
+<td class="gt_row gt_center" headers="stat_1">35 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="stat_2">42 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Polish</td>
+<td class="gt_row gt_center" headers="stat_1">38 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="stat_2">36 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Portuguese</td>
+<td class="gt_row gt_center" headers="stat_1">314 (0.7%)</td>
+<td class="gt_row gt_center" headers="stat_2">351 (0.8%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Russian</td>
+<td class="gt_row gt_center" headers="stat_1">659 (1.4%)</td>
+<td class="gt_row gt_center" headers="stat_2">601 (1.3%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Somali</td>
+<td class="gt_row gt_center" headers="stat_1">15 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="stat_2">8 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Spanish</td>
+<td class="gt_row gt_center" headers="stat_1">1,429 (3.0%)</td>
+<td class="gt_row gt_center" headers="stat_2">1,472 (3.2%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Thai</td>
+<td class="gt_row gt_center" headers="stat_1">22 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="stat_2">21 (&lt;0.1%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Vietnamese</td>
+<td class="gt_row gt_center" headers="stat_1">129 (0.3%)</td>
+<td class="gt_row gt_center" headers="stat_2">151 (0.3%)</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Unknown</td>
+<td class="gt_row gt_center" headers="stat_1">186</td>
+<td class="gt_row gt_center" headers="stat_2">210</td>
+<td class="gt_row gt_center" headers="p.value"><br>
+</td>
+</tr>
 </tbody><tfoot>
 <tr class="gt_footnotes odd">
 <td colspan="4" class="gt_footnote"><span class="gt_footnote_marks" style="white-space:nowrap;font-style:italic;font-weight:normal;line-height:0;"><sup>1</sup></span> n (%); Median (Q1, Q3)</td>
@@ -1347,6 +1581,18 @@ N = 46,337<span class="gt_footnote_marks" style="white-space:nowrap;font-style:i
 <span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">ls</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
+</section>
+<section id="ai-assistant" class="level3">
+<h3 class="anchored" data-anchor-id="ai-assistant">AI Assistant</h3>
+<p>I used Gemini 3 Flash, usually on fast thinking but also set to thinking mode when I really needed it to ‘focus.’ I sometimes clarified that if it did suggest code, it should follow the tidyverse style guide though I now run r styler at the end, so perhaps that is not needed.</p>
+<ol type="1">
+<li>I asked with help for my dropdowns in tab 1 to get the graphics to summarize the los, gender, etc. Instead, it displayed every single variable even noisy ones so I had a dropdown with 40+ variables that were not insightful for the user.</li>
+<li>Instead of ensuring I used json token for app functionality, I was in an endless loop of being asked to authenticate online. I had to repair by using same authentication logic I used in the Rmd.</li>
+<li>Gemini suggested I use some gargle function to clear the cache that did not actually exist, so I was left with many errors.</li>
+<li>Generally, if I asked for assistance with one element of the app, the other functionalities would be broken and it was like this for a little.</li>
+<li>Need to overly assert that the token should not go on github and what that means in terms of file organization.</li>
+</ol>
+<p>That was all, it was moreso loops of me telling it the same thing over and over.</p>
 </section>
 </section>
 </section>
