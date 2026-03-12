@@ -1,0 +1,76 @@
+---
+title: "biostat203bhw4"
+format: html
+editor: visual
+author: Yasmine Tani; UID 406579988
+---
+
+# Biostatistics 203B - Homework 4
+
+```{r}
+sessionInfo()
+```
+
+```{r}
+memuse::Sys.meminfo()
+```
+
+```{r}
+library(bigrquery)
+library(dbplyr)
+library(DBI)
+library(gt)
+library(gtsummary)
+library(tidyverse)
+```
+
+## **Q1. Compile the ICU cohort in HW3 from the Google BigQuery database**
+
+### **Q1.1 Connect to BigQuery**
+
+```{r}
+# path to the service account token 
+satoken <- "biostat-203b-2026-winter-92fefbfab477.json"
+# BigQuery authentication using service account
+bq_auth(path = satoken)
+```
+
+```{r}
+# connect to the BigQuery database `biostat-203b-2025-mimiciv_3_1`
+con_bq <- dbConnect(
+    bigrquery::bigquery(),
+    project = "biostat-203b-2025-winter",
+    dataset = "mimiciv_3_1",
+    billing = "biostat-203b-2025-winter"
+)
+con_bq
+```
+
+```{r}
+dbListTables(con_bq)
+```
+
+### **Q1.2 ICU Stays Data**
+
+```{r}
+# full ICU stays table
+icustays_tble <- tbl(con_bq, "icustays") |>
+  arrange(subject_id, hadm_id, stay_id) |>
+  # show_query() |>
+  print(width = Inf)
+```
+
+### **Q1.3 Admissions Data**
+
+```{r}
+admissions_tble <- tbl(con_bq, "admissions") |>
+  arrange(subject_id, hadm_id) |>
+  # show_query() |>
+  print(width = Inf)
+```
+
+```{r}
+patients_tble <- tbl(con_bq, "patients") |>
+  arrange(subject_id) |>
+  print(width = Inf)
+```
