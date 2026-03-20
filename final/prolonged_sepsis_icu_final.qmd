@@ -309,13 +309,142 @@ print(colSums(is.na(sepsis_cohort_final %>% select(starts_with("max_"), starts_w
 ```
 
 ```{r}
-# Make sure prolonged_stay_14 is a factor for the legend
-ggplot(sepsis_cohort_final, aes(x = max_lactate, fill = as.factor(prolonged_stay_14))) +
+ggplot(sepsis_cohort_final, aes(x = max_creatinine, fill = as.factor(prolonged_stay_14))) +
   geom_density(alpha = 0.5) +
   scale_x_log10() + 
   theme_minimal() +
   scale_fill_manual(values = c("skyblue", "orange"), name = "Stay > 14 Days") +
-  labs(title = "Max Lactate: Normal vs. Prolonged Stay (>14d)", 
-       x = "Max Lactate (log scale)", 
-       y = "Density")
+  labs(
+    title = "Distribution of Max Creatinine by Stay Length",
+    subtitle = "Sepsis patients with stays >14 days tend to have higher peak creatinine levels.",
+    x = "Max Creatinine (mg/dL) - Log Scale",
+    y = "Density"
+  )
+```
+
+```{r}
+# IDs
+vital_ids <- c(220045, 220210, 220181, 220052, 223761, 223762, 220179, 220050)
+# join
+vitals_cleaned <- open_dataset("chartevents_pq") %>%
+  filter(stay_id %in% sepsis_cohort_final$stay_id) %>% # filter before collect!
+  filter(itemid %in% vital_ids) %>%
+  collect() %>%
+  select(-any_of("hadm_id")) %>% 
+  mutate(stay_id = as.numeric(stay_id)) %>%
+  inner_join(
+    sepsis_cohort_final %>% 
+      mutate(stay_id = as.numeric(stay_id)) %>% 
+      select(stay_id, hadm_id, intime), 
+    by = "stay_id"
+  ) %>%
+  filter(charttime >= intime, charttime <= intime + hours(24))
+
+# summarize: one median value per patient, per vital sign
+vitals_summarized <- vitals_cleaned %>%
+  mutate(vital_name = case_when(
+    itemid == 220045 ~ "heart_rate",
+    itemid == 220210 ~ "resp_rate",
+    itemid %in% c(220181, 220052) ~ "mean_bp",
+    itemid %in% c(220179, 220050) ~ "sys_bp",    # New Systolic BP
+    itemid %in% c(223761, 223762) ~ "temp_f"
+  )) %>%
+  # convert Celsius to Fahrenheit if itemid is 223762
+mutate(valuenum = if_else(itemid == 223762, (valuenum * 9/5) + 32, valuenum)) %>%  
+  
+# biological sanity check: remove extreme outliers/errors
+  filter(
+    !(vital_name == "heart_rate" & (valuenum < 0 | valuenum > 300)),
+    !(vital_name == "resp_rate" & (valuenum < 0 | valuenum > 100)),
+    !(vital_name == "mean_bp" & (valuenum < 0 | valuenum > 300)),
+    !(vital_name == "sys_bp" & (valuenum < 0 | valuenum > 300)),  # Added Sys BP
+    !(vital_name == "temp_f" & (valuenum < 70 | valuenum > 115))
+  ) %>%
+  group_by(hadm_id, vital_name) %>%
+  summarize(val = median(valuenum, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = vital_name, values_from = val)
+
+# check result: should see hadm_id and the 4 vital columns
+print("Structure of summarized vitals:")
+head(vitals_summarized)
+```
+
+```{r}
+v_cols <- c("heart_rate", "resp_rate", "mean_bp", "sys_bp", "temp_f")
+
+# join the summarized vitals
+sepsis_cohort_final <- sepsis_cohort_final %>%
+  select(-any_of(v_cols)) %>%  # wipe out old versions if they exist
+  left_join(vitals_summarized, by = "hadm_id")
+
+# print missingness stats
+missing_report <- sepsis_cohort_final %>%
+  summarise(across(any_of(v_cols), 
+                   list(
+                     count = ~sum(is.na(.)),
+                     percent = ~round(sum(is.na(.)) / n() * 100, 2)
+                   )))
+
+print("--- Vital Signs Missingness Report (Pre-Imputation) ---")
+print(missing_report)
+```
+
+```{r}
+# median imputation (we have low missing % values, teammate confirmed with TAs)
+sepsis_cohort_final <- sepsis_cohort_final %>%
+  mutate(across(any_of(v_cols), 
+                ~ if_else(is.na(.), median(., na.rm = TRUE), .)))
+
+# final verification - should be 0 now
+print("--- Final Missing Count Check (Vitals) ---")
+print(colSums(is.na(sepsis_cohort_final %>% select(any_of(v_cols)))))
+```
+
+```{r}
+# grab diagnoses and filter for our sepsis crew
+diagnoses <- read_csv("~/mimic/hosp/diagnoses_icd.csv.gz") %>%
+  filter(hadm_id %in% sepsis_cohort_final$hadm_id)
+
+# flag the comorbidities using regex (checking for both ICD9/10)
+comorbidities <- diagnoses %>%
+  group_by(hadm_id) %>%
+  summarize(
+    hypertension = max(if_else(str_detect(icd_code, "^I1[0-5]|^40[1-5]"), 1, 0)),
+    diabetes = max(if_else(str_detect(icd_code, "^E0[8-9]|^E1[0-3]|^250"), 1, 0)),
+    ckd = max(if_else(str_detect(icd_code, "^N18|^585"), 1, 0)),
+    cvd = max(if_else(str_detect(icd_code, "^I2[0-5]|^I50|^41[0-4]|^428"), 1, 0)),
+    liver_disease = max(if_else(str_detect(icd_code, "^B18|^K7[0-6]|^571"), 1, 0)),
+    immunosuppression = max(if_else(str_detect(icd_code, "^D8[0-9]|^279|^V581|^Z511"), 1, 0))
+  ) %>%
+  ungroup()
+
+# join to the master table and clean up
+# use sepsis_cohort_final here so we keep our vitals and labs!
+sepsis_cohort_final <- sepsis_cohort_final %>%
+  select(-any_of(colnames(comorbidities)[-1])) %>% # avoid duplicate col drama
+  left_join(comorbidities, by = "hadm_id") %>%
+  # if no code code, assume they don't have the condition (set to 0)
+  mutate(across(c(hypertension, diabetes, ckd, cvd, liver_disease, immunosuppression),
+                ~ if_else(is.na(.), 0, .))) %>%
+  # make them factors so the Random Forest treats them as categories, not numbers
+  mutate(across(c(hypertension, diabetes, ckd, cvd, liver_disease, immunosuppression), as.factor))
+
+# distribution
+summary(sepsis_cohort_final %>% select(hypertension, diabetes, ckd))
+```
+
+```{r}
+# prevalence of comorbidities
+comorb_plot <- sepsis_cohort_final %>%
+  select(hypertension, diabetes, ckd, cvd) %>%
+  mutate(across(everything(), ~ as.numeric(as.character(.)))) %>%
+  summarise(across(everything(), mean)) %>%
+  pivot_longer(everything(), names_to = "Condition", values_to = "Prevalence")
+
+ggplot(comorb_plot, aes(x = reorder(Condition, Prevalence), y = Prevalence)) +
+  geom_bar(stat = "identity", fill = "darkseagreen") +
+  scale_y_continuous(labels = scales::percent) +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Prevalence of Comorbidities in Sepsis Cohort", x = "", y = "Percentage of Patients")
 ```
