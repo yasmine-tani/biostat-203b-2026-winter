@@ -9,7 +9,7 @@ execute:
   message: false
 editor: visual
 editor_options: 
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 
 ```{r}
@@ -223,4 +223,99 @@ sepsis_cohort_final <- sepsis_cohort_final %>%
 
 #balance of our labels
 table(sepsis_cohort_final$prolonged_stay_14)
+```
+
+```{r}
+# age distribution
+ggplot(sepsis_cohort_final, aes(x = age_at_admit)) + 
+  geom_histogram(bins = 30, fill = "steelblue", color = "white") +
+  theme_minimal() + 
+  labs(title = "Age Distribution of Sepsis Cohort", x = "Age", y = "Count")
+
+# gender Breakdown
+ggplot(sepsis_cohort_final, aes(x = gender, fill = gender)) + 
+  geom_bar() + 
+  theme_minimal() + 
+  labs(title = "Gender Distribution", x = "Gender", y = "Count")
+```
+
+```{r}
+# lab IDs
+lab_id_map <- list(
+  lactate = c(50813, 52442, 53154),
+  creatinine = c(50912, 52024, 52546),
+  bilirubin = c(50885, 53089),
+  wbc = c(51301, 51755, 51756),
+  platelets = c(51265, 53189)
+)
+
+# filter for the first 24 hours of the ICU stay
+labs_features_raw <- open_dataset("labevents_pq") %>%
+  filter(hadm_id %in% sepsis_cohort_final$hadm_id) %>%
+  filter(itemid %in% unlist(lab_id_map)) %>%
+  collect() %>%
+  inner_join(sepsis_cohort_final %>% select(hadm_id, intime), by = "hadm_id") %>%
+  filter(charttime >= intime, charttime <= intime + hours(24)) %>%
+  mutate(lab_name = case_when(
+    itemid %in% lab_id_map$lactate ~ "max_lactate",
+    itemid %in% lab_id_map$creatinine ~ "max_creatinine",
+    itemid %in% lab_id_map$bilirubin ~ "max_bilirubin",
+    itemid %in% lab_id_map$wbc ~ "max_wbc",
+    itemid %in% lab_id_map$platelets ~ "min_platelets"
+  )) %>%
+  # biological sanitycCheck: remove extreme outliers/errors
+  filter(
+    !(lab_name == "max_lactate" & valuenum > 30),
+    !(lab_name == "max_wbc" & valuenum > 200),
+    !(lab_name == "min_platelets" & valuenum > 2000)
+  )
+
+# summarize to get the "worst" value per patient
+labs_summarized <- labs_features_raw %>%
+  group_by(hadm_id, lab_name) %>%
+  summarize(
+    val = if (all(is.na(valuenum))) {
+      NA_real_  # If all values are NA, return a proper NA instead of -Inf
+    } else if (str_detect(first(lab_name), "min")) {
+      min(valuenum, na.rm = TRUE)
+    } else {
+      max(valuenum, na.rm = TRUE)
+    },
+    .groups = "drop"
+  ) %>%
+  pivot_wider(names_from = lab_name, values_from = val)
+
+print("Labs Summarized Preview:")
+labs_summarized %>% select(1:min(5, ncol(.))) %>% head()
+```
+
+```{r}
+# join labs to the master sepsis cohort
+sepsis_cohort_final <- sepsis_cohort_final %>%
+  left_join(labs_summarized, by = "hadm_id")
+
+# check missingness before imputation
+print("Missing counts BEFORE imputation:")
+print(colSums(is.na(sepsis_cohort_final %>% select(starts_with("max_"), starts_with("min_")))))
+
+# median imputation
+sepsis_cohort_final <- sepsis_cohort_final %>%
+  mutate(across(c(max_lactate, max_creatinine, max_bilirubin, max_wbc, min_platelets), 
+                ~ if_else(is.na(.), median(., na.rm = TRUE), .)))
+
+# final verification
+print("Missing counts AFTER imputation:")
+print(colSums(is.na(sepsis_cohort_final %>% select(starts_with("max_"), starts_with("min_")))))
+```
+
+```{r}
+# Make sure prolonged_stay_14 is a factor for the legend
+ggplot(sepsis_cohort_final, aes(x = max_lactate, fill = as.factor(prolonged_stay_14))) +
+  geom_density(alpha = 0.5) +
+  scale_x_log10() + 
+  theme_minimal() +
+  scale_fill_manual(values = c("skyblue", "orange"), name = "Stay > 14 Days") +
+  labs(title = "Max Lactate: Normal vs. Prolonged Stay (>14d)", 
+       x = "Max Lactate (log scale)", 
+       y = "Density")
 ```
