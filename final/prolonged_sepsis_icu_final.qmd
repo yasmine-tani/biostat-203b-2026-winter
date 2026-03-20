@@ -119,3 +119,108 @@ print(paste("Total Admissions that included an ICU stay:", total_icu_admissions)
 print(paste("Total individual ICU stays (stay_id):", total_icu_stays))
 
 ```
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+II\. Creation of our Patient Cohort
+
+-   filtering to sepsis patients with their **primary** diagnosis being sepsis
+
+-   utilized a keyword search in the dictionary because we found that this approach yields more patients than merely searching by all the possible ICD codes (there are some specific codes we wont know for additional types of sepsis)
+
+-   filtering to patients in the ICU and only utilizing their first admission to the ICU
+
+-   only keeping patients \>18 \[ adults \]
+
+-   introducing demographic, insurance, lab, comorbidities, vasopressor medications, and vitals data that are relevant to our cohort
+
+-   **thorough** filtration of extreme values & imputation of missing values through necessary means \[ had low missing %'s so we used median imputation\]
+
+-   removal of patients that died within the first 48 hours or model would not be able to distinguish between very health & very sick and would perform very poorly for long stays
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+```{r}
+# load the dictionary table
+d_icd <- read_csv("mimic/hosp/d_icd_diagnoses.csv.gz")
+
+# identify every code that has sepsis in title
+sepsis_keyword_codes <- d_icd %>%
+  filter(str_detect(tolower(long_title), "sepsis")) %>%
+  pull(icd_code)
+
+# filter for primary diagnosis
+primary_sepsis_admissions <- diagnoses_icd %>%
+  filter(seq_num == 1, icd_code %in% sepsis_keyword_codes) %>%
+  select(hadm_id) %>%
+  distinct()
+
+# count
+print(paste("Primary Sepsis Patients Admitted:", nrow(primary_sepsis_admissions)))
+```
+
+```{r}
+# initial join (sepsis in ICU)
+sepsis_icu_only <- icu_stays %>% inner_join(primary_sepsis_admissions, by = "hadm_id")
+print(paste("Sepsis in ICU Count:", nrow(sepsis_icu_only))) # This is the one line you wanted
+
+# refine to adults and first stays
+sepsis_cohort_initial <- sepsis_icu_only %>%
+  inner_join(patients, by = "subject_id") %>%
+  inner_join(admissions %>% select(hadm_id, race, insurance, hospital_expire_flag), by = "hadm_id") %>%
+  filter(!is.na(intime), !is.na(outtime)) %>%
+  mutate(age_at_admit = anchor_age + (year(intime) - anchor_year)) %>%
+  filter(age_at_admit >= 18, los > 0) %>%
+  group_by(subject_id) %>%
+  arrange(intime) %>%
+  slice(1) %>%
+  ungroup()
+
+print(paste("Adults / 1st Stay Count:", nrow(sepsis_cohort_initial)))
+
+# apply the 48-hour survival filter
+sepsis_cohort_final <- sepsis_cohort_initial %>%
+  filter(!(hospital_expire_flag == 1 & los < 2))
+
+print(paste("Final Cohort Count (Survival >48h):", nrow(sepsis_cohort_final)))
+
+# update data frame for the plot to include all 4 steps
+cleaning_steps <- data.frame(
+  Step = c("Hospital Sepsis", "ICU Sepsis", "Adults / 1st Stay", "Survival >48h"),
+  Count = c(nrow(primary_sepsis_admissions), nrow(sepsis_icu_only), nrow(sepsis_cohort_initial), nrow(sepsis_cohort_final))
+)
+```
+
+```{r}
+#fix the order so it doesn't alphabetize
+cleaning_steps$Step <- factor(cleaning_steps$Step, levels = cleaning_steps$Step)
+
+ggplot(cleaning_steps, aes(x = Step, y = Count, fill = Step)) +
+  geom_bar(stat = "identity", show.legend = FALSE, width = 0.6) +
+  geom_text(aes(label = Count), vjust = -0.5, fontface = "bold") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Blues", direction = -1) +
+  labs(
+    title = "Cohort Selection Attrition",
+    x = "",
+    y = "Patient Count"
+  ) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.8))
+```
+
+```{r}
+# calculate average length of stay (ICU)
+avg_los <- mean(sepsis_cohort_final$los, na.rm = TRUE)
+med_los <- median(sepsis_cohort_final$los, na.rm = TRUE)
+
+# create the 14-day binary target: OUR OUTCOME
+sepsis_cohort_final <- sepsis_cohort_final %>%
+  mutate(prolonged_stay_14 = if_else(los > 14, 1, 0))
+
+#balance of our labels
+table(sepsis_cohort_final$prolonged_stay_14)
+```
