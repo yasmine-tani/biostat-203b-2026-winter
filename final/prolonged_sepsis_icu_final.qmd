@@ -546,3 +546,336 @@ colnames(sepsis_cohort_final)
 ------------------------------------------------------------------------
 
 ------------------------------------------------------------------------
+
+III\. Test/ Train Split & Modeling Approach
+
+-   printing predictors as reminder/overview
+
+-   including interactions in our models (key for a clinical outcome)
+
+-   running logistic model (will run baseline + 3 normalized models though we are focused on LASSO after conversation w/ TA we just want to showcase that by testing various)
+
+-   running random forest model
+
+-   running XG boost
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+```{r}
+# predictor list
+final_predictors <- c(
+  "age_at_admit", "gender", "race_group", "insurance",
+  "max_lactate", "max_creatinine", "max_bilirubin", "max_wbc", "min_platelets",
+  "heart_rate", "mean_bp", "sys_bp", "resp_rate", "temp_f",
+  "hypertension", "diabetes", "ckd", "cvd", "vasopressors"
+)
+
+print(paste("Number of Predictors:", length(final_predictors)))
+```
+
+```{r}
+library(caret)
+
+sepsis_cohort_final$prolonged_stay_14 <- as.factor(sepsis_cohort_final$prolonged_stay_14)
+
+# seed for reproducibility
+set.seed(123)
+train_index <- createDataPartition(sepsis_cohort_final$prolonged_stay_14, p = 0.8, list = FALSE)
+
+train_set <- sepsis_cohort_final[train_index, ]
+test_set  <- sepsis_cohort_final[-train_index, ]
+
+print(paste("Training size:", nrow(train_set)))
+print(paste("Testing size:", nrow(test_set)))
+```
+
+```{r}
+log_model_final <- glm(
+  prolonged_stay_14 ~ age_at_admit + gender + race_group + insurance +
+    max_lactate + max_creatinine + max_bilirubin + max_wbc + min_platelets +
+    heart_rate + mean_bp + sys_bp + resp_rate + temp_f +
+    # INTERACTIONS (IMPORTANT!)
+    diabetes * hypertension + 
+    ckd * age_at_admit +
+    vasopressors * max_lactate,
+  data = train_set, 
+  family = "binomial"
+)
+
+# results
+summary(log_model_final)
+```
+
+```{r}
+library(pROC)
+
+# predict probabilities on the test set
+test_probs <- predict(log_model_final, newdata = test_set, type = "response")
+
+# ROC object
+roc_obj <- roc(test_set$prolonged_stay_14, test_probs)
+
+# print the AUC
+print(paste("Final Model AUC:", round(auc(roc_obj), 3)))
+
+# plot the ROC Curve
+plot(roc_obj, col = "#2c7fb8", lwd = 3, main = "ROC Curve: Predicting 14-Day Stay")
+abline(a = 0, b = 1, lty = 2, col = "gray") # The "Random Guess" line
+```
+
+```{r}
+library(tidyr)
+
+# select variables of interest
+key_vars <- sepsis_cohort_final %>%
+  select(age_at_admit, max_lactate, max_bilirubin, max_creatinine, resp_rate) %>%
+  pivot_longer(cols = everything())
+
+# distribution plot
+ggplot(key_vars, aes(x = value)) +
+  geom_histogram(bins = 30, fill = "steelblue", color = "white") +
+  facet_wrap(~name, scales = "free") +
+  theme_minimal() +
+  labs(title = "Distribution of Key Clinical Predictors", x = "Value", y = "Count")
+```
+
+```{r}
+model_formula_final <- as.formula(
+  prolonged_stay_14 ~ age_at_admit + gender + race_group + insurance +
+    max_lactate + max_creatinine + max_bilirubin + max_wbc + min_platelets +
+    heart_rate + mean_bp + sys_bp + resp_rate + temp_f +
+    diabetes * hypertension + ckd * age_at_admit + vasopressors * max_lactate
+)
+
+# filter the data to rows w complete cases (only a few missing insurance)
+train_final <- train_set %>%
+  select(all_of(all.vars(model_formula_final))) %>%
+  drop_na()
+
+test_final <- test_set %>%
+  select(all_of(all.vars(model_formula_final))) %>%
+  drop_na()
+
+# create the matrices 
+x_train <- model.matrix(model_formula_final, data = train_final)[, -1]
+y_train <- as.numeric(as.character(train_final$prolonged_stay_14))
+
+x_test  <- model.matrix(model_formula_final, data = test_final)[, -1]
+y_test  <- as.numeric(as.character(test_final$prolonged_stay_14))
+```
+
+```{r}
+# run the 3 regularized models
+
+set.seed(123)
+lasso_cv <- cv.glmnet(x_train, y_train, family = "binomial", alpha = 1)
+ridge_cv <- cv.glmnet(x_train, y_train, family = "binomial", alpha = 0)
+enet_cv  <- cv.glmnet(x_train, y_train, family = "binomial", alpha = 0.5)
+
+# AUC results table
+tibble(
+  Model = c("Lasso", "Ridge", "Elastic Net"),
+  AUC = c(
+    auc(roc(y_test, as.numeric(predict(lasso_cv, x_test, s = "lambda.min", type = "response")), quiet = TRUE)),
+    auc(roc(y_test, as.numeric(predict(ridge_cv, x_test, s = "lambda.min", type = "response")), quiet = TRUE)),
+    auc(roc(y_test, as.numeric(predict(enet_cv, x_test, s = "lambda.min", type = "response")), quiet = TRUE))
+  )
+) %>%
+  mutate(AUC = round(as.numeric(AUC), 4))
+```
+
+```{r}
+coefs <- as.matrix(coef(lasso_cv, s = "lambda.min"))
+
+# turn them into the 'lasso_importance' table your plot expects
+lasso_importance <- data.frame(Predictor = rownames(coefs), Importance = abs(coefs[,1])) %>%
+  filter(Predictor != "(Intercept)", Importance > 0)
+```
+
+```{r}
+library(tibble)
+
+# clean predictor names in importance table
+lasso_importance_clean <- lasso_importance %>%
+  mutate(
+    Predictor = Predictor %>%
+      # remove the trailing '1' from binary variables
+      str_replace_all("1$", "") %>%
+      # replace underscores with spaces
+      str_replace_all("_", " ") %>%
+      str_to_title() %>%
+      # fix specific lab names that shouldn't be fully capitalized
+      str_replace("Wbc", "WBC") %>%
+      str_replace("Bp", "BP") %>%
+      str_replace("Ckd", "CKD")
+  )
+
+# plot
+ggplot(lasso_importance_clean, aes(x = reorder(Predictor, Importance), y = Importance)) +
+  geom_col(fill = "#2c7fb8", color = "white") +
+  coord_flip() +
+  theme_minimal() +
+  labs(
+    title = "Key Clinical Predictors of 14-Day ICU Stay",
+    subtitle = "Winning Lasso Model (AUC: 0.7778)",
+    x = NULL, # Removes the redundant "Predictors" label
+    y = "Relative Predictive Strength"
+  )
+```
+
+```{r}
+# probabilities 
+lasso_probs <- predict(lasso_cv, x_test, s = "lambda.min", type = "response") %>%
+  as.numeric()
+
+# use the ROC object to find the "best threshold (Youden's J Index)
+# this finds the point that balances Sensitivity and Specificity perfectly
+roc_obj <- roc(y_test, lasso_probs, quiet = TRUE)
+best_threshold <- coords(roc_obj, "best", ret = "threshold") %>% as.numeric()
+
+# create new predictions based on this smarter threshold
+lasso_preds_tuned <- ifelse(lasso_probs > best_threshold, 1, 0) %>%
+  factor(levels = c(0, 1))
+
+# run the confusion matrix again
+conf_matrix_tuned <- confusionMatrix(lasso_preds_tuned, factor(y_test, levels = c(0, 1)), positive = "1")
+
+# print updated results
+tibble(
+  Metric = c("New Threshold", "Accuracy", "Sensitivity", "Specificity"),
+  Value = c(
+    best_threshold,
+    conf_matrix_tuned$overall["Accuracy"],
+    conf_matrix_tuned$byClass["Sensitivity"],
+    conf_matrix_tuned$byClass["Specificity"]
+  )
+) %>%
+  mutate(Value = round(as.numeric(Value), 4))
+```
+
+```{r}
+# create ROC object
+roc_final <- roc(y_test, lasso_probs, quiet = TRUE)
+
+# plot using ggroc
+ggroc(roc_final, colour = "#2c7fb8", size = 1) +
+  geom_abline(intercept = 1, slope = 1, linetype = "dashed", color = "grey") +
+  theme_minimal() +
+  labs(
+    title = "Final Lasso Model Performance",
+    subtitle = paste("AUC:", round(auc(roc_final), 4)),
+    x = "Specificity",
+    y = "Sensitivity"
+  ) +
+  # flips the x-axis to the standard medical 1 -> 0 view
+  scale_x_reverse()
+```
+
+```{r}
+library(randomForest)
+
+# prepare data 
+train_rf <- train_final %>%
+  mutate(prolonged_stay_14 = as.factor(prolonged_stay_14))
+
+test_rf <- test_final %>%
+  mutate(prolonged_stay_14 = as.factor(prolonged_stay_14))
+
+# train the forest
+set.seed(123)
+rf_model <- randomForest(
+  model_formula_final, 
+  data = train_rf,
+  ntree = 500,
+  importance = TRUE
+)
+
+# get probabilities for the test set
+# type = "prob" gives a matrix; we want the probability of "1" (long stay)
+rf_probs <- predict(rf_model, test_rf, type = "prob")[, "1"]
+
+# AUC
+rf_auc <- auc(roc(as.numeric(as.character(test_rf$prolonged_stay_14)), rf_probs, quiet = TRUE))
+
+print(paste("Random Forest AUC:", round(rf_auc, 4)))
+```
+
+```{r}
+# extract and clean importance data
+rf_importance <- as.data.frame(importance(rf_model)) %>%
+  rownames_to_column(var = "Predictor") %>%
+  # 'MeanDecreaseGini' = standard measure for importance in RF!!!!!!!!
+  arrange(desc(MeanDecreaseGini)) %>%
+  mutate(Predictor = str_replace_all(Predictor, "_", " ") %>% str_to_title())
+
+# plot
+ggplot(rf_importance, aes(x = reorder(Predictor, MeanDecreaseGini), y = MeanDecreaseGini)) +
+  geom_col(fill = "#1b9e77", color = "white") +
+  coord_flip() +
+  theme_minimal() +
+  labs(
+    title = "Random Forest: Variable Importance",
+    subtitle = paste("AUC:", round(rf_auc, 4)),
+    x = NULL,
+    y = "Mean Decrease in Gini (Importance)"
+  )
+```
+
+```{r}
+library(xgboost)
+
+# convert data to matrix (XGBoost only takes numeric inputs)
+dtrain <- xgb.DMatrix(data = x_train, label = y_train)
+dtest <- xgb.DMatrix(data = x_test, label = y_test)
+
+# set parameters 
+params <- list(
+  objective = "binary:logistic",
+  eval_metric = "auc",
+  eta = 0.1,       # Learning rate
+  max_depth = 4    # Depth of trees
+)
+
+# training (with same breakups as our other 2 models)
+set.seed(123)
+xgb_model <- xgb.train(
+  params = params,
+  data = dtrain,
+  nrounds = 100,   # number of boosting iterations
+  evals = list(val = dtest, train = dtrain),
+  print_every_n = 10,
+  early_stopping_rounds = 10
+)
+
+# predictions and AUC
+xgb_probs <- predict(xgb_model, dtest)
+xgb_auc <- auc(roc(y_test, xgb_probs, quiet = TRUE))
+
+print(paste("XGBoost AUC:", round(xgb_auc, 4)))
+```
+
+```{r}
+library(pROC)
+library(ggplot2)
+
+# create ROC objects for all three
+roc_lasso <- roc(y_test, lasso_probs, quiet = TRUE)
+roc_rf    <- roc(as.numeric(as.character(test_rf$prolonged_stay_14)), rf_probs, quiet = TRUE)
+roc_xgb   <- roc(y_test, xgb_probs, quiet = TRUE)
+
+# plot them together (Tidyverse style)
+ggroc(list(Lasso = roc_lasso, "Random Forest" = roc_rf, XGBoost = roc_xgb), size = 1) +
+  geom_abline(intercept = 1, slope = 1, linetype = "dashed", color = "grey") +
+  theme_minimal() +
+  scale_color_manual(values = c("Lasso" = "#d95f02", "Random Forest" = "#1b9e77", "XGBoost" = "#7570b3")) +
+  labs(
+    title = "Model Comparison: Predicting 14-Day Sepsis Stay",
+    subtitle = "Lasso provides the most robust predictive power (AUC: 0.7778)",
+    x = "Specificity",
+    y = "Sensitivity",
+    color = "Model Type"
+  ) +
+  scale_x_reverse()
+```
