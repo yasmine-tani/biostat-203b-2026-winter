@@ -226,6 +226,30 @@ table(sepsis_cohort_final$prolonged_stay_14)
 ```
 
 ```{r}
+# join with admissions 
+sepsis_cohort_final <- sepsis_cohort_final %>%
+  mutate(
+    # categroize race to reduce noise & maxmiize data use
+    race_group = case_when(
+      str_detect(race, "WHITE") ~ "WHITE",
+      str_detect(race, "BLACK") ~ "BLACK",
+      str_detect(race, "HISPANIC") ~ "HISPANIC",
+      str_detect(race, "ASIAN") ~ "ASIAN",
+      TRUE ~ "OTHER/UNKNOWN"
+    ),
+    # ensure Insurance is a factor
+    insurance = as.factor(insurance)
+  )
+
+# breakdown of these features
+print("Insurance Breakdown:")
+table(sepsis_cohort_final$insurance)
+
+print("Cleaned Race Breakdown:")
+table(sepsis_cohort_final$race_group)
+```
+
+```{r}
 # age distribution
 ggplot(sepsis_cohort_final, aes(x = age_at_admit)) + 
   geom_histogram(bins = 30, fill = "steelblue", color = "white") +
@@ -448,3 +472,77 @@ ggplot(comorb_plot, aes(x = reorder(Condition, Prevalence), y = Prevalence)) +
   theme_minimal() +
   labs(title = "Prevalence of Comorbidities in Sepsis Cohort", x = "", y = "Percentage of Patients")
 ```
+
+```{r}
+# load prescriptions and filter for our cohort
+# using prescriptions for vasopressors is good, though some are in inputevents
+prescriptions_raw <- read_csv("~/mimic/hosp/prescriptions.csv.gz") %>%
+  filter(hadm_id %in% sepsis_cohort_final$hadm_id)
+
+# flag vasopressors in the first 24 hours
+vaso_flags <- prescriptions_raw %>%
+  left_join(sepsis_cohort_final %>% select(hadm_id, intime), by = "hadm_id") %>%
+  # filter: was the drug started within 24 hours of ICU admission?
+  filter(starttime >= intime & starttime <= (intime + hours(24))) %>%
+  mutate(drug = tolower(drug)) %>% 
+  group_by(hadm_id) %>%
+  summarize(
+    vasopressors = max(if_else(str_detect(drug, "norepinephrine|epinephrine|phenylephrine|vasopressin|dopamine"), 1, 0)),
+    .groups = "drop"
+  )
+
+# join back to the master table
+sepsis_cohort_final <- sepsis_cohort_final %>%
+  # remove old version if it exists
+  select(-any_of("vasopressors")) %>% 
+  left_join(vaso_flags, by = "hadm_id") %>%
+  # if a patient wasn't in the vaso_flags list, they didn't get pressors (set to 0)
+  mutate(vasopressors = if_else(is.na(vasopressors), 0, as.numeric(vasopressors))) %>%
+  # make it a factor for the model
+  mutate(vasopressors = as.factor(vasopressors))
+
+# final Count Check
+print("Distribution of Vasopressor use in first 24h:")
+table(sepsis_cohort_final$vasopressors)
+```
+
+```{r}
+# check for any remaining NAs in your potential predictors
+colSums(is.na(sepsis_cohort_final %>% 
+                select(hospital_expire_flag, age_at_admit, gender, race_group, 
+                       starts_with("max_"), starts_with("min_"),
+                       heart_rate, mean_bp, sys_bp, resp_rate, temp_f,
+                       hypertension, diabetes, ckd, cvd, vasopressors)))
+```
+
+```{r}
+# checking for weird outliers or extreme values
+sepsis_cohort_final %>%
+  select(age_at_admit, heart_rate, resp_rate, mean_bp, sys_bp, temp_f, 
+         max_lactate, max_creatinine, max_bilirubin) %>%
+  summary()
+```
+
+```{r}
+sepsis_cohort_final <- sepsis_cohort_final %>%
+  mutate(
+    # fix 0 respiratory rates using the median (if it were a prolonged 0 average then the patient would be dead...)
+    resp_rate = if_else(resp_rate <= 0, median(resp_rate[resp_rate > 0], na.rm = TRUE), resp_rate),
+    # fix the 0 mean_bp using the median
+    mean_bp = if_else(mean_bp <= 0, median(mean_bp[mean_bp > 0], na.rm = TRUE), mean_bp),
+    # ensure our stay flag is a factor for the model
+    prolonged_stay_14 = as.factor(prolonged_stay_14)
+  )
+
+# verify 0 is gone
+summary(sepsis_cohort_final$resp_rate)
+```
+
+```{r}
+# list all column names to make sure everything joined correctly
+colnames(sepsis_cohort_final)
+```
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
