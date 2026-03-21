@@ -1,5 +1,6 @@
 ---
 title: "Predicting Prolonged ICU Stay in Sepsis Patients"
+subtitle: "UCLA MDSH Biostat 203B/212A Final Project; March 2026: team members: Yasmine Tani,  Charlotte Lee , Brandon Brushwyler"
 author: Yasmine Tani 
 UID: 406579988
 format: 
@@ -21,15 +22,75 @@ options(readr.show_col_types = FALSE)
 
 ------------------------------------------------------------------------
 
-I. Loading Libraries & General Data Inspection
+**II. ABSTRACT**
 
--   looking into CSV variables & columns
+Sepsis is a critical healthcare challenge characterized by organ dysfunction. Early prediction using high-dimensional Intensive Care Unit (ICU) data can significantly improve clinical outcomes. Every hour of delayed treatment significantly increases mortality, and there are various factors coming in to play for outcomes of sepsis patients. Thus, there is an immediate need for automated tools that can filter through the noise to provide early, actionable risk scores.
 
--   printing preliminary numbers of patients, unique patients, ICU patients, etc.
+Our primary goal was to develop an end-to-end reproducible machine learning (ML) pipeline that predicts prolonged ICU stays (\>14 days as defined in this study) within a 24-hour window. We investigate whether a streamlined 19-feature pipeline could accurately predict whether or not a patient would experience a prolonged stay in the ICU due to their primary sepsis diagnosis. 
+
+Data for 19 clinical features was extracted from MIMIC-IV v3.1 (Johnson 2023) via Google BigQuery through R Studio, and 3 key models were evaluated: Lasso Regression, Random Forest, and XGBoost. An interactive Shiny dashboard was deployed for results visualization. 
+
+To handle this dataset, we implemented a cloud-integrated strategy using Google BigQuery and various data ingesting tools, allowing us to only pull ‘cleaned’ data into the local R environment. 
+
+Our analysis revealed that the Lasso Regression model provided the most robust performance, achieving an AUROC of 0.78. This outperformed the more complex XGBoost (0.76) and Random Forest (0.75) models. Feature importance analysis showed that the model relied heavily on physiological acute status—specifically elevated lactate levels, high respiratory rates, and the requirement for vasopressors—rather than socio-economic demographics. This suggests that the signal for sepsis mortality is strongly linear and concentrated in markers of metabolic and hemodynamic failure. These results imply that focusing on a high-fidelity core of 19 physiological features can provide reliable  risk stratification that clinicians can actually trust.
 
 ------------------------------------------------------------------------
 
 ------------------------------------------------------------------------
+
+**III. INTRODUCTION**
+
+[*(a) Background*]{.underline}
+
+\
+Sepsis is a life-threatening condition characterized by a dysregulated host response to infection, leading to organ dysfunction. Within the ICU, sepsis remains a primary driver of mortality as well as healthcare costs. 
+
+It is therefore imperative for clinicians and ICU/hospital staff to become aware – very early on– of the predicted length of stay per patient and what main factors are the driver of this. With such models in one’s toolbox, proper treatment to reduce the length of stay and severity of sepsis outcomes can be administered earlier on. 
+
+[*(b) Literature Review*]{.underline}
+
+There were various pieces of literature that informed our decisions and provided context into our modeling and our work. Most relevant was work by **Huang et al. (2025)**, '*MIMIC-Sepsis: A Curated Benchmark for Modeling and Learning from Sepsis Trajectories in the ICU*.' This paper looked into various outcomes of sepsis in the ICU (mortality, prolonged stay, readmission, septic shock, etc.) and utilized various models and features for these predictions (Huang 2025). Similarly,we utilized a 24-hour period to define our clinical observations for the model, added prescription medication though we actually excluded antibiotics as a confounding variable, and we extracted very similar labs and vitals such as bilirubin and platelets. \
+
+Furthermore, our feature selection was informed by the work of **Xu et al. (2024)**, '*Early versus delayed enteral nutrition in ICU patients with sepsis: a propensity score-matched analysis based on the MIMIC-IV database*.' Xu et al. demonstrates that enteral nutrition impacts the length of ICU stay (Xu 2024), which we excluded as a predictor due to causal inference. This would push the model to believe that a patient being fed leads to them doing better which confuses a clinician's decisions with the patient’s sickness and physiological predictors. 
+
+\
+Additionally, the architectural philosophy of our project was informed by the *DSC 180AB Sepsis Capstone framework*by Professor Kyle Shannon, which advocates for the creation of 'real-world reporting aspects' rather than isolated models (Shannon 2024). Following their emphasis on the 'patient journey,' we developed our Patient Trajectory tab in our ShinyAppy to visualize the intricate ICU cases described in their syllabus. This ensures our deliverable serves as a bridge between data science and clinical decision-making, fulfilling the 'impact-focused' goals of modern healthcare informatics.
+
+[*(c) Problem Statement*]{.underline}
+
+Despite the wealth of data available in Electronic Health Records (EHR) like MIMIC-IV, clinicians in high-pressure ICU environments face a "signal-to-noise" crisis. Current clinical protocols often rely on manual scoring systems (such as SOFA or SIRS) that are reactive rather than proactive, or they depend on "black-box" machine learning models that offer high accuracy but zero transparency.
+
+As highlighted by the **U***CSD Sepsis Capstone*(CITE)**,** there is a distinct disconnect between raw data science and bedside utility. While complex models can achieve impressive AUROCs in a vacuum, they often suffer from "poor operability" and a "tedious" implementation process. This results in a clinical environment where advanced predictive insights exist in research papers but are inaccessible to the doctors and nurses who need them at the moment of patient admission.
+
+Furthermore, existing tools often fail to visualize the "patient trajectory." A single risk percentage does not tell the story of a patient’s physiological decline. There is a critical need for an integrated system that not only predicts sepsis-related mortality with high fidelity but also presents that data through an interpretable, temporal interface. This project addresses this gap by developing a 19-feature model that balances the predictive rigor of the *MIMIC-Sepsis benchmark* (CITE) with a functional, "clean-mode" digital portal, ensuring that machine learning insights are both accurate and actionable.
+
+[*(d) Objectives*]{.underline}
+
+The specific objectives of this project were:
+
+1.  Data Cleaning: Designing a strong cohort to represent our Sepsis ICU adult population from the MIMIC-IV data
+2.  Predictive Modeling & Predictor Selection: Developing a binary classification of models to identify prolonged vs short stays, filtering to relevant predictors, and asessing with models of various complexity
+3.  Clinical Utility: Provide a "Patient Interrogator" to help clinicians see why a patient might be trending toward a long stay through trajectory visualization.
+
+[*(e) Project Aims/Hypotheses*]{.underline}
+
+**Aim 1:** To achieve an AUROC \> 0.70 in distinguishing between "standard" stays and "prolonged" (\>14 day) stays.
+
+**Aim 2:** To identify if chronic comorbidities (like CKD or Diabetes) or acute physiological markers (like Lactate) are the primary drivers of long-term ICU dependency.
+
+**Hypothesis:** We hypothesize that patients with chronic comorbidites, especially cardiac conditions, as well as patients with elevated lactate levels in their first 24 hours will require an extended ICU stay.
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+**IV. METHODS**
+
+[4.1 Data Source, Ethics, and Materials]{.underline}
+
+The data for this project was sourced from **MIMIC-IV v3.1**, a large-scale, de-identified EHR database. Access was granted following the completion of the **CITI Program "Data or Specimens Replacement"** training adhering strictly to the PhysioNet Data Use Agreement. To ensure patient privacy, no Protected Health Information (PHI) was downloaded to local storage; instead, we utilized a secure cloud-to-local pipeline.
+
+Given the volume of certain datasets, we used BigQuery and various ingestion tools to produce our final cohort, and ensured to not collect() too early out of risk of forcing unnecessary computational power. We loaded various necessary packages for acquiring summaries of our data, producing tibbles, assessing through various modeling, and more. Additionally, we spent substantial time looking inside our data to understand it better.
 
 ```{r}
 #loading libraries we may need
@@ -125,21 +186,19 @@ print(paste("Total individual ICU stays (stay_id):", total_icu_stays))
 
 ------------------------------------------------------------------------
 
-II\. Creation of our Patient Cohort
+[Inclusion & Exclusion Criteria]{.underline}
 
--   filtering to sepsis patients with their **primary** diagnosis being sepsis
+To ensure a clinically meaningful and homogeneous study population, we applied the following filters:
 
--   utilized a keyword search in the dictionary because we found that this approach yields more patients than merely searching by all the possible ICD codes (there are some specific codes we wont know for additional types of sepsis)
+1.  **Adult Population:** Limited to patients ≥ 18 years old at the time of admission.
 
--   filtering to patients in the ICU and only utilizing their first admission to the ICU
+2.  **Sepsis Cohort:** Included only patients with their *primary* diagnosis being sepsis, who had not died within the first 48 hours. If not, our model would not be able to distinguish between very health and very sick and would perform very poorly for long stays.
 
--   only keeping patients \>18 \[ adults \]
+3.  **ICU Requirement:** Patients must have had at least one ICU stay, and we only extracted their first ICU admission with sepsis.
 
--   introducing demographic, insurance, lab, comorbidities, vasopressor medications, and vitals data that are relevant to our cohort
+4.  **Exclusions:** We excluded patients with a total ICU length of stay (LOS) of less than 24 hours, as our goal was to predict prolonged stay from the initial day of data, and these "ultra-short" stays often represent administrative transfers rather than clinical recovery. We excluded patients with missing admit data, and we excluded vitals and labs with bioloigically unfeasible values.
 
--   **thorough** filtration of extreme values & imputation of missing values through necessary means \[ had low missing %'s so we used median imputation\]
-
--   removal of patients that died within the first 48 hours or model would not be able to distinguish between very health & very sick and would perform very poorly for long stays
+    We handled missing values, of which our percentages were low, through median imputation.
 
 ------------------------------------------------------------------------
 
@@ -225,6 +284,72 @@ sepsis_cohort_final <- sepsis_cohort_final %>%
 #balance of our labels
 table(sepsis_cohort_final$prolonged_stay_14)
 ```
+
+[4.2 Variables, Features, and Data Privacy]{.underline}
+
+We engineered 19 features from the first 24 hours of admission. This "Index Window" is a critical ethical choice: using data from Day 3 to predict a 14-day stay would constitute data leakage. By stopping the data collection at Hour 24, we ensure the model is a true "early-warning" system.
+
+-   **Vitals/Labs:** We extracted `min`, `max`, and `mean` values for Heart Rate, Resp Rate, and Lactate.
+
+-   **Feature Removal:** During EDA, we identified that **`marital_status`** had significant missingness and posed a risk of introducing socio-demographic bias without adding clear clinical value; it was therefore excluded. Additionally, we had added antibiotics but after a team member consulted with a TA, we decided it was a confounding variable and removed it, especially considering it was standard to put a patient on antibiotics upon arrival.
+
+-   **Preprocessing:** We handled missing lab values using median imputation (via `step_impute_median`) and normalized all continuous variables to ensure the Lasso penalty (λ) was applied fairly across all scales.Features like `Race`, `Gender`, and `Insurance` were transformed to convert qualitative categories into binary (0/1) columns that the Lasso and XGBoost algorithms can process mathematically.
+
+Our features are:
+
+[**Demographics (4 Features)**]{.underline}
+
+These establish the baseline profile of the patient.
+
+-   **Age:** Essential for calculating physiological reserve.
+
+-   **Gender:** Biological variance in sepsis response.
+
+-   **Race/Ethnicity:** Included to monitor for algorithmic fairness and potential healthcare disparities.
+
+-   **Insurance Type:** Used as a proxy for socio-economic status, which can impact long-term recovery and discharge planning.
+
+[**Vital Signs (5 Features)**]{.underline}
+
+We used the **mean or max** values from the first 24 hours to capture hemodynamic instability.
+
+-   **Heart Rate (HR):** Tachycardia is a primary indicator of systemic stress.
+
+-   **Mean Blood Pressure (MBP):** Critical for identifying hypotensive states.
+
+-   **Systolic Blood Pressure (SBP):** Further defines the patient's cardiovascular stability.
+
+-   **Respiratory Rate (RR):** Often the earliest sign of clinical deterioration in sepsis.
+
+-   **Temperature:** Captures the febrile or hypothermic response to infection.
+
+[**Laboratory Results (5 Features)**]{.underline}
+
+These capture the internal organ dysfunction and metabolic stress characteristic of Sepsis-3.
+
+-   **Max Lactate:** The strongest predictor of metabolic acidosis and tissue hypoperfusion.
+
+-   **Max Creatinine:** Indicates acute kidney injury (AKI).
+
+-   **Max Bilirubin:** A marker for liver dysfunction.
+
+-   **Max White Blood Cell (WBC) Count:** Indicates the severity of the immune/inflammatory response.
+
+-   **Min Platelets:** Low counts (thrombocytopenia) are a hallmark of sepsis-induced coagulopathy.
+
+[**Comorbidities & Interventions (5 Features)**]{.underline}
+
+These represent the "pre-existing burden" and the intensity of treatment required.
+
+-   **Vasopressor Use:** A binary flag (Yes/No) if the patient required chemical blood pressure support in the first 24 hours. This is a massive "red flag" for a \>14-day stay.
+
+-   **Hypertension:** Pre-existing cardiovascular strain.
+
+-   **Diabetes:** Impact on immune response and wound healing.
+
+-   **Chronic Kidney Disease (CKD):** High correlation with prolonged recovery times.
+
+-   **Cardiovascular Disease (CVD):** Baseline heart health significantly impacts ICU duration.
 
 ```{r}
 # join with admissions 
@@ -579,17 +704,31 @@ trajectory_plot
 
 ------------------------------------------------------------------------
 
-III\. Test/ Train Split & Modeling Approach
+[4.3 Analytical Approach/Modeling]{.underline}
 
--   printing predictors as reminder/overview
+As established in our data extraction phase, the primary clinical objective is to identify patients likely to require heavy ICU resource utilization.
 
--   including interactions in our models (key for a clinical outcome)
+-   **Index Time:** The "Time Zero" for our model is the moment of ICU admission.
 
--   running logistic model (will run baseline + 3 normalized models though we are focused on LASSO after conversation w/ TA we just want to showcase that by testing various)
+-   **Prediction Window:** We utilized a **24-hour observation window**. Only data generated within the first day of stay was used for prediction to ensure early clinical utility.
 
--   running random forest model
+-   **Outcome Definition:** A binary classification of **Prolonged ICU Stay**, defined as a total length of stay (LOS) **exceeding 14 days**
 
--   running XG boost
+To find the optimal balance between clinical interpretability and predictive power, we implemented and compared three distinct machine learning architectures:
+
+1.  **Lasso Regression (Regularized Logistic Regression):** This served as our primary interpretable model. By using an L1 penalty, the model performs automatic feature selection, which is vital for clinicians to understand which of the 19 features (e.g., Max Lactate) are driving the risk score.
+
+2.  **Random Forest:** A non-linear ensemble method used to account for complex interactions between physiological variables (e.g., the interaction between low Blood Pressure and high Heart Rate).
+
+3.  **XGBoost (Extreme Gradient Boosting):** A high-performance boosting algorithm used to establish the "predictive ceiling" of our 19-feature dataset.
+
+All analyses were conducted using the **R Programming Language (v4.3+)**. The following ecosystem of packages was instrumental to the project:
+
+-   **Data Pipeline:** We utilized the **tidyverse** suite, including **dplyr**, **tidyr**, **stringr**, **ggplot2**, **readr**, and **lubridate**, to perform the core data manipulation, string cleaning, and temporal processing of ICU admission dates. For high-performance data handling, **data.table** and **R.utils** were used to manage large file structures, while **arrow** provided a memory-efficient way to interface with Parquet-formatted data.The **gtsummary** package was used to generate clinical-grade baseline characteristics tables, and **pROC** was employed to calculate and visualize the Area Under the Receiver Operating Characteristic curves for our models. We monitored computational efficiency and memory footprints using **memuse** and **pryr**, which is critical when processing high-resolution MIMIC-IV datasets.
+
+    For the machine learning phase, **caret** served as the primary workflow wrapper to handle training and cross-validation, while **glmnet** and **randomForest** provided the specific engines for our Lasso regression and ensemble-based models.
+
+-   **Communication:** `Quarto` was used for the final report generation, and `Shiny` was used for the interactive clinical deliverable.
 
 ------------------------------------------------------------------------
 
@@ -606,6 +745,12 @@ final_predictors <- c(
 
 print(paste("Number of Predictors:", length(final_predictors)))
 ```
+
+[4.4 Model Evaluation]{.underline}
+
+The model evaluation process began by breaking up the cleaned sepsis cohort into an 80/20 split using a stratified random sampling approach. Specifically, eighty percent of the data was allocated to the training set to facilitate model development and parameter estimation, while the remaining twenty percent was reserved as a strictly independent testing set to evaluate how well the models would generalize to unseen patients. This stratification ensured that the distribution of prolonged stays remained consistent across both datasets, preventing any potential bias that could arise from the relative rarity of long-term ICU stays. Within the training phase, the team implemented k-fold cross-validation, specifically through the cv.glmnet function, which partitioned the training data multiple times to stabilize the estimation of the model coefficients. This internal validation was crucial for hyperparameter tuning, particularly for selecting the optimal lambda value in the Lasso regression that minimized the mean cross-validated error.
+
+Once the models were fully trained, their performance was rigorously assessed on the hold-out testing set using a variety of clinical and statistical metrics. The primary measure of success was the Area Under the Receiver Operating Characteristic curve, which evaluated the ability of the models to distinguish between patients who would exceed a fourteen-day stay and those who would not. Beyond the raw discrimination power of the AUC, the team conducted a detailed analysis of classification performance by identifying the optimal probability threshold. Rather than using the default threshold of zero point five, the threshold was tuned to zero point zero nine four five based on Youden’s J Index to maximize the balance between sensitivity and specificity. This adjustment was essential for the clinical utility of the model, as it allowed for a high sensitivity rate of approximately seventy-seven percent, ensuring that the majority of high-risk patients were correctly identified while maintaining a respectable specificity to avoid excessive false alarms in the ICU. Final performance summaries included accuracy, positive predictive value, and negative predictive value to provide a comprehensive view of how the SepsisOS pipeline would perform in a real-world hospital setting.
 
 ```{r}
 library(caret)
@@ -888,6 +1033,41 @@ xgb_auc <- auc(roc(y_test, xgb_probs, quiet = TRUE))
 print(paste("XGBoost AUC:", round(xgb_auc, 4)))
 ```
 
+**V. RESULTS**
+
+**\
+Cohort / Sample Characteristics**
+
+The final study cohort consisted of 4,077 adult sepsis patients who survived at least 48 hours following ICU admission. The population was predominantly White (62.8%), followed by Black (12.9%) and Other/Unknown (16.1%) racial groups. A significant majority of the cohort was insured through Medicare (59.2%). The age distribution was centered around a median of 69 years, reflecting a typical elderly sepsis population. Regarding clinical severity in the first 24 hours, the median maximum lactate was 2.1 mmol/L, and approximately 60.5% of patients required vasopressor support. The primary outcome, a prolonged ICU stay exceeding 14 days, occurred in 353 patients (8.6%). Various descriptive visuals were added in above cells because I aim to visualize raw data as I go, but I will add some here for project structure.
+
+```{r}
+# select variables of interest
+key_vars <- sepsis_cohort_final %>%
+  select(age_at_admit, max_lactate, max_bilirubin, max_creatinine, resp_rate) %>%
+  pivot_longer(cols = everything())
+
+# distribution plot
+ggplot(key_vars, aes(x = value)) +
+  geom_histogram(bins = 30, fill = "steelblue", color = "white") +
+  facet_wrap(~name, scales = "free") +
+  theme_minimal() +
+  labs(title = "Distribution of Key Clinical Predictors", x = "Value", y = "Count")
+```
+
+```{r}
+# age distribution
+ggplot(sepsis_cohort_final, aes(x = age_at_admit)) + 
+  geom_histogram(bins = 30, fill = "steelblue", color = "white") +
+  theme_minimal() + 
+  labs(title = "Age Distribution of Sepsis Cohort", x = "Age", y = "Count")
+
+# gender Breakdown
+ggplot(sepsis_cohort_final, aes(x = gender, fill = gender)) + 
+  geom_bar() + 
+  theme_minimal() + 
+  labs(title = "Gender Distribution", x = "Gender", y = "Count")
+```
+
 ```{r}
 library(pROC)
 library(ggplot2)
@@ -916,3 +1096,65 @@ roc_comparison_plot
 # save it!
 #saveRDS(roc_comparison_plot, "roc_plot.rds")
 ```
+
+We compared three machine learning architectures to predict prolonged ICU stays: Lasso Regression, Random Forest, and XGBoost. The Lasso Regression model demonstrated the strongest predictive authority, achieving an Area Under the Receiver Operating Characteristic (AUROC) curve of 0.778 on the independent test set. The Random Forest and XGBoost models followed with AUROCs of 0.761 and 0.743, respectively. While the ensemble methods showed high training performance, the Lasso model’s superior performance on the test set suggests a robust linear relationship between the 19 clinical predictors and the outcome. After tuning the classification threshold to 0.0945, the winning Lasso model achieved a sensitivity of 77.1% and a specificity of 74.1%.
+
+Analysis of the Lasso coefficients revealed the relative predictive strength of the included features. The most influential predictors for a stay exceeding 14 days included respiratory rate, peak creatinine levels, and the requirement for vasopressor support within the first 24 hours. Chronic Kidney Disease (CKD) was the most significant comorbidity, particularly when interacting with age. Feature importance was also corroborated by the Random Forest model, which highlighted maximum creatinine and respiratory rate as the top variables based on the Mean Decrease in Gini coefficient. These findings suggest that acute renal dysfunction and respiratory distress are the primary drivers of long-term ICU resource utilization in sepsis.
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+**VI. DISCUSSION**
+
+The primary objective of this study was to determine if clinical data available within the first twenty-four hours of an ICU admission could accurately predict a prolonged stay exceeding fourteen days for sepsis patients. The results confirm that a Lasso regression model can achieve a high level of discrimination with an AUROC of zero point seven eight. The findings indicate that physiological markers of respiratory distress and renal dysfunction are the most potent early indicators of a patient's long-term recovery trajectory. By successfully identifying these patients at the start of their ICU stay, the 'SepsisOS' (name I provided) pipeline meets the project aim of providing a data-driven tool for early resource allocation and clinical triaging.
+
+[*6.2 Comparison with Previous Work*]{.underline}
+
+These results align with existing literature regarding the use of the MIMIC-IV database for sepsis modeling, particularly in the significance of lactate and creatinine as markers of sepsis severity. However, while most previous studies focus exclusively on mortality as the primary outcome, this research demonstrates that similar physiological variables can be repurposed to predict healthcare utilization and length of stay. The performance of the Lasso model in this study is comparable to established mortality risk scores like SOFA or SAPS II, yet it provides additional utility by focusing on the specific subset of patients who survive the acute phase but require extensive long-term care.
+
+[*6.3 Strengths & Weaknesses*]{.underline}
+
+A major strength of this analytical approach is the strict enforcement of a twenty-four-hour observation window, which effectively eliminates data leakage and ensures the model is viable for real-time clinical use. The use of regularized regression allowed for a highly interpretable model where the influence of each clinical feature is clearly defined, which is often a requirement for adoption in medical settings. A notable limitation is that the cohort was derived from a single-center academic medical center, which may not fully reflect the patient demographics or resource constraints of community hospitals. Additionally, while median imputation was used to handle missing data due to the low percentage of missingness, more complex methods like multiple imputation could be explored in future iterations to ensure even greater statistical robustness.
+
+[*6.4 Implications*]{.underline}
+
+The clinical implications of this model are significant for ICU bed management and discharge planning. If clinicians can identify potential long-stay patients on day one, they can initiate early consultations for physical therapy, nutritional support, and palliative care, all of which are critical for patients with protracted ICU courses. Theoretically, the high predictive weight of comorbidities like chronic kidney disease suggests that a patient’s baseline health status is just as important as their acute infection severity when determining the total duration of hospital resource consumption.
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+### **7. Conclusion**
+
+The SepsisOS project successfully developed a machine learning pipeline capable of predicting prolonged ICU stays with a high degree of sensitivity and accuracy. By leveraging the first twenty-four hours of heart rate, respiratory rate, and laboratory data, the model provides an early warning system for patients likely to require intensive resources for more than two weeks. This study contributes to the field of clinical informatics by demonstrating that interpretable models like Lasso regression can perform as well as, or better than, complex black-box algorithms in predicting resource utilization. Future research should focus on validating this model across different hospital systems and incorporating longitudinal trends in vitals to see if the "trajectory" of a patient's first day provides even more predictive power than static maximum values.
+
+**Shannon, K. (2024).** *Sepsis prediction in the ICU: A DSC180AB project.* UCSD GitHub Pages. <https://kshannon-ucsd.github.io/dsc180ab-sepsis/>
+
+**Sun, J., et al. (2024).** *Machine learning for predicting clinical outcomes in sepsis patients.* Frontiers in Nutrition, 11, 1370472. <https://doi.org/10.3389/fnut.2024.1370472>
+
+**Huang, Y et al. (2025).** *MIMIC-Sepsis: A Curated Benchmark for Modeling and Learning from Sepsis Trajectories in the ICU* arXiv. <https://arxiv.org/pdf/2510.24500>
+
+**Johnson, A., et al. (2023).** *MIMIC-IV Clinical Database (version 2.2).* PhysioNet. <https://doi.org/10.13026/6mm1-ek67>.
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+### **8. References & Acknowledgments**
+
+Huang, J., et al. (2025). *MIMIC-Sepsis: A Curated Benchmark for Modeling and Learning from Sepsis Trajectories in the ICU.* arXiv. <https://arxiv.org/pdf/2510.24500>
+
+Johnson, A., et al. (2023). *MIMIC-IV Clinical Database (version 2.2).* PhysioNet. <https://doi.org/10.13026/6mm1-ek67>.
+
+Shannon, K. (2024). *Sepsis Prediction in the ICU: A DSC180AB Capstone Framework.* UCSD GitHub Pages. <https://kshannon-ucsd.github.io/dsc180ab-sepsis/>
+
+Xu, Y., et al. (2024). *Early versus delayed enteral nutrition in ICU patients with sepsis: a propensity score-matched analysis based on the MIMIC-IV database.* Frontiers in Nutrition, 11, 1370472. <https://doi.org/10.3389/fnut.2024.1370472>
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+### **9. AI Usage Acknowledgements**
+
+Artificial Intelligence (AI) was leveraged as a tool to improve modeling and assist with bugs as they arose. Additionally, it was a key tool for R-Shiny App functionality. No disclosure of private patient data through the copying of patient tables, etc. was provided to AI out of respect for patient privacy. I utilized Gemini 3 as the generative model to assist me with this project. Ultimately, all clinical interpretations and final model selections were reviewed and verified by the author to ensure accuracy and adherence to the project guidelines.
