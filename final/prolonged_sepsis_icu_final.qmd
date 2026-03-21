@@ -1,6 +1,7 @@
 ---
 title: "Predicting Prolonged ICU Stay in Sepsis Patients"
-author: Yasmine Tani; UID 406579988
+author: Yasmine Tani 
+UID: 406579988
 format: 
   html:
     embed-resources: true
@@ -543,6 +544,37 @@ summary(sepsis_cohort_final$resp_rate)
 colnames(sepsis_cohort_final)
 ```
 
+```{r}
+library(tidyverse)
+library(patchwork) # To combine the 3 plots easily
+
+# Update your make_traj function slightly:
+make_traj <- function(var_name, title_lab, color_hex) {
+  ggplot(sepsis_cohort_final, aes(x = .data[[var_name]], y = los)) +
+    geom_point(alpha = 0.1, color = "grey") + 
+    geom_smooth(method = "gam", color = color_hex, size = 1.5) + 
+    coord_cartesian(ylim = c(0, 30)) + # <--- THIS IS THE MAGIC LINE
+    theme_minimal() +
+    labs(subtitle = title_lab, x = "Clinical Value", y = "Days in ICU")
+}
+
+# 2. Generate the 3 plots using your actual variables
+p1 <- make_traj("heart_rate", "Heart Rate Trend", "#e41a1c")
+p2 <- make_traj("resp_rate", "Respiratory Rate Trend", "#377eb8")
+p3 <- make_traj("max_creatinine", "Max Creatinine Trend", "#4daf4a")
+
+# 3. Combine them into one "Trajectory" Visual
+trajectory_plot <- (p1 | p2 | p3) + 
+  plot_annotation(title = "Clinical Trajectories: First 24h Vitals vs. Total LOS",
+                  theme = theme(plot.title = element_text(size = 16, face = "bold")))
+
+
+trajectory_plot
+
+#saveRDS(trajectory_plot, "trajectory_plot.rds")
+
+```
+
 ------------------------------------------------------------------------
 
 ------------------------------------------------------------------------
@@ -866,7 +898,7 @@ roc_rf    <- roc(as.numeric(as.character(test_rf$prolonged_stay_14)), rf_probs, 
 roc_xgb   <- roc(y_test, xgb_probs, quiet = TRUE)
 
 # plot them together (Tidyverse style)
-ggroc(list(Lasso = roc_lasso, "Random Forest" = roc_rf, XGBoost = roc_xgb), size = 1) +
+roc_comparison_plot <- ggroc(list(Lasso = roc_lasso, "Random Forest" = roc_rf, XGBoost = roc_xgb), size = 1) +
   geom_abline(intercept = 1, slope = 1, linetype = "dashed", color = "grey") +
   theme_minimal() +
   scale_color_manual(values = c("Lasso" = "#d95f02", "Random Forest" = "#1b9e77", "XGBoost" = "#7570b3")) +
@@ -878,4 +910,9 @@ ggroc(list(Lasso = roc_lasso, "Random Forest" = roc_rf, XGBoost = roc_xgb), size
     color = "Model Type"
   ) +
   scale_x_reverse()
+
+roc_comparison_plot
+
+# save it!
+#saveRDS(roc_comparison_plot, "roc_plot.rds")
 ```
