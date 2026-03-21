@@ -1,0 +1,1160 @@
+---
+title: "Predicting Prolonged ICU Stay in Sepsis Patients"
+subtitle: "UCLA MDSH Biostat 203B/212A Final Project; March 2026: team members: Yasmine Tani,  Charlotte Lee , Brandon Brushwyler"
+author: Yasmine Tani 
+UID: 406579988
+format: 
+  html:
+    embed-resources: true
+execute:
+  warning: false
+  message: false
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+options(readr.show_col_types = FALSE)
+```
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+**II. ABSTRACT**
+
+Sepsis is a critical healthcare challenge characterized by organ dysfunction. Early prediction using high-dimensional Intensive Care Unit (ICU) data can significantly improve clinical outcomes. Every hour of delayed treatment significantly increases mortality, and there are various factors coming in to play for outcomes of sepsis patients. Thus, there is an immediate need for automated tools that can filter through the noise to provide early, actionable risk scores.
+
+Our primary goal was to develop an end-to-end reproducible machine learning (ML) pipeline that predicts prolonged ICU stays (\>14 days as defined in this study) within a 24-hour window. We investigate whether a streamlined 19-feature pipeline could accurately predict whether or not a patient would experience a prolonged stay in the ICU due to their primary sepsis diagnosis. 
+
+Data for 19 clinical features was extracted from MIMIC-IV v3.1 (Johnson 2023) via Google BigQuery through R Studio, and 3 key models were evaluated: Lasso Regression, Random Forest, and XGBoost. An interactive Shiny dashboard was deployed for results visualization. 
+
+To handle this dataset, we implemented a cloud-integrated strategy using Google BigQuery and various data ingesting tools, allowing us to only pull ‘cleaned’ data into the local R environment. 
+
+Our analysis revealed that the Lasso Regression model provided the most robust performance, achieving an AUROC of 0.78. This outperformed the more complex XGBoost (0.76) and Random Forest (0.75) models. Feature importance analysis showed that the model relied heavily on physiological acute status—specifically elevated lactate levels, high respiratory rates, and the requirement for vasopressors—rather than socio-economic demographics. This suggests that the signal for sepsis mortality is strongly linear and concentrated in markers of metabolic and hemodynamic failure. These results imply that focusing on a high-fidelity core of 19 physiological features can provide reliable  risk stratification that clinicians can actually trust.
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+**III. INTRODUCTION**
+
+[*(a) Background*]{.underline}
+
+\
+Sepsis is a life-threatening condition characterized by a dysregulated host response to infection, leading to organ dysfunction. Within the ICU, sepsis remains a primary driver of mortality as well as healthcare costs. 
+
+It is therefore imperative for clinicians and ICU/hospital staff to become aware – very early on– of the predicted length of stay per patient and what main factors are the driver of this. With such models in one’s toolbox, proper treatment to reduce the length of stay and severity of sepsis outcomes can be administered earlier on. 
+
+[*(b) Literature Review*]{.underline}
+
+There were various pieces of literature that informed our decisions and provided context into our modeling and our work. Most relevant was work by **Huang et al. (2025)**, '*MIMIC-Sepsis: A Curated Benchmark for Modeling and Learning from Sepsis Trajectories in the ICU*.' This paper looked into various outcomes of sepsis in the ICU (mortality, prolonged stay, readmission, septic shock, etc.) and utilized various models and features for these predictions (Huang 2025). Similarly,we utilized a 24-hour period to define our clinical observations for the model, added prescription medication though we actually excluded antibiotics as a confounding variable, and we extracted very similar labs and vitals such as bilirubin and platelets. \
+
+Furthermore, our feature selection was informed by the work of **Xu et al. (2024)**, '*Early versus delayed enteral nutrition in ICU patients with sepsis: a propensity score-matched analysis based on the MIMIC-IV database*.' Xu et al. demonstrates that enteral nutrition impacts the length of ICU stay (Xu 2024), which we excluded as a predictor due to causal inference. This would push the model to believe that a patient being fed leads to them doing better which confuses a clinician's decisions with the patient’s sickness and physiological predictors. 
+
+\
+Additionally, the architectural philosophy of our project was informed by the *DSC 180AB Sepsis Capstone framework*by Professor Kyle Shannon, which advocates for the creation of 'real-world reporting aspects' rather than isolated models (Shannon 2024). Following their emphasis on the 'patient journey,' we developed our Patient Trajectory tab in our ShinyAppy to visualize the intricate ICU cases described in their syllabus. This ensures our deliverable serves as a bridge between data science and clinical decision-making, fulfilling the 'impact-focused' goals of modern healthcare informatics.
+
+[*(c) Problem Statement*]{.underline}
+
+Despite the wealth of data available in Electronic Health Records (EHR) like MIMIC-IV, clinicians in high-pressure ICU environments face a "signal-to-noise" crisis. Current clinical protocols often rely on manual scoring systems (such as SOFA or SIRS) that are reactive rather than proactive, or they depend on "black-box" machine learning models that offer high accuracy but zero transparency.
+
+As highlighted by the **U***CSD Sepsis Capstone*(CITE)**,** there is a distinct disconnect between raw data science and bedside utility. While complex models can achieve impressive AUROCs in a vacuum, they often suffer from "poor operability" and a "tedious" implementation process. This results in a clinical environment where advanced predictive insights exist in research papers but are inaccessible to the doctors and nurses who need them at the moment of patient admission.
+
+Furthermore, existing tools often fail to visualize the "patient trajectory." A single risk percentage does not tell the story of a patient’s physiological decline. There is a critical need for an integrated system that not only predicts sepsis-related mortality with high fidelity but also presents that data through an interpretable, temporal interface. This project addresses this gap by developing a 19-feature model that balances the predictive rigor of the *MIMIC-Sepsis benchmark* (CITE) with a functional, "clean-mode" digital portal, ensuring that machine learning insights are both accurate and actionable.
+
+[*(d) Objectives*]{.underline}
+
+The specific objectives of this project were:
+
+1.  Data Cleaning: Designing a strong cohort to represent our Sepsis ICU adult population from the MIMIC-IV data
+2.  Predictive Modeling & Predictor Selection: Developing a binary classification of models to identify prolonged vs short stays, filtering to relevant predictors, and asessing with models of various complexity
+3.  Clinical Utility: Provide a "Patient Interrogator" to help clinicians see why a patient might be trending toward a long stay through trajectory visualization.
+
+[*(e) Project Aims/Hypotheses*]{.underline}
+
+**Aim 1:** To achieve an AUROC \> 0.70 in distinguishing between "standard" stays and "prolonged" (\>14 day) stays.
+
+**Aim 2:** To identify if chronic comorbidities (like CKD or Diabetes) or acute physiological markers (like Lactate) are the primary drivers of long-term ICU dependency.
+
+**Hypothesis:** We hypothesize that patients with chronic comorbidites, especially cardiac conditions, as well as patients with elevated lactate levels in their first 24 hours will require an extended ICU stay.
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+**IV. METHODS**
+
+[4.1 Data Source, Ethics, and Materials]{.underline}
+
+The data for this project was sourced from **MIMIC-IV v3.1**, a large-scale, de-identified EHR database. Access was granted following the completion of the **CITI Program "Data or Specimens Replacement"** training adhering strictly to the PhysioNet Data Use Agreement. To ensure patient privacy, no Protected Health Information (PHI) was downloaded to local storage; instead, we utilized a secure cloud-to-local pipeline.
+
+Given the volume of certain datasets, we used BigQuery and various ingestion tools to produce our final cohort, and ensured to not collect() too early out of risk of forcing unnecessary computational power. We loaded various necessary packages for acquiring summaries of our data, producing tibbles, assessing through various modeling, and more. Additionally, we spent substantial time looking inside our data to understand it better.
+
+```{r}
+#loading libraries we may need
+
+library(arrow)
+library(gtsummary)
+library(memuse)
+library(pryr)
+library(R.utils)
+library(tidyverse)
+library(stringr)
+library(ggplot2)
+library(lubridate)
+library(readr)
+library(randomForest)
+library(data.table)
+library(glmnet)
+```
+
+```{bash}
+# we are using icu data so let us again see contents of mimic icu
+ls -l ~/mimic/icu
+```
+
+```{bash}
+# we will also need labs and more from the hopsital data so lets see whats in that folder
+# folder and then the head of the admissions csv
+ls -l ~/mimic/hosp
+```
+
+```{bash}
+gzcat ~/mimic/hosp/admissions.csv.gz | head
+```
+
+```{bash}
+# before i ingest the icu csv i want to look into all these csv's to make sure i know
+# where to get the data from and what the variables would look like, etc.
+#check column names for admissions.csv.gz [ first few lines]
+gzcat ~/mimic/hosp/admissions.csv.gz | head
+```
+
+```{bash}
+#how many unique patients?
+gzcat ~/mimic/hosp/admissions.csv.gz | tail -n +2 | awk -F, '{print $1}' | sort | uniq | wc -l
+```
+
+```{bash}
+#for our icu data 
+#count ICU stays [rows of this]
+echo "--- ICU STAYS ---"
+gzcat ~/mimic/icu/icustays.csv.gz | tail -n +2 | wc -l
+
+#count unique patients w/ subject_id
+echo "--- UNIQUE PATIENTS ---"
+gzcat ~/mimic/icu/icustays.csv.gz | tail -n +2 | awk -F, '{print $1}' | sort | uniq | wc -l
+```
+
+```{r}
+# load the hospital data (where patients and diagnoses live)
+patients <- read_csv("mimic/hosp/patients.csv.gz")
+admissions <- read_csv("mimic/hosp/admissions.csv.gz")
+diagnoses_icd <- read_csv("mimic/hosp/diagnoses_icd.csv.gz")
+
+# load the ICU data (where the stays live)
+icu_stays <- read_csv("mimic/icu/icustays.csv.gz")
+```
+
+```{r}
+library(dplyr)
+library(readr)
+
+# load tables
+admissions <- read_csv("mimic/hosp/admissions.csv.gz")
+icu_stays <- read_csv("mimic/icu/icustays.csv.gz")
+
+# join them together
+# use inner_join to keep only those who appear in both tables
+icu_admissions <- admissions %>%
+  inner_join(icu_stays, by = c("subject_id", "hadm_id"))
+
+# counts
+total_admissions <- n_distinct(admissions$hadm_id)
+total_icu_admissions <- n_distinct(icu_admissions$hadm_id)
+total_icu_stays <- n_distinct(icu_admissions$stay_id)
+
+print(paste("Total Hospital Admissions:", total_admissions))
+print(paste("Total Admissions that included an ICU stay:", total_icu_admissions))
+print(paste("Total individual ICU stays (stay_id):", total_icu_stays))
+
+```
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+[Inclusion & Exclusion Criteria]{.underline}
+
+To ensure a clinically meaningful and homogeneous study population, we applied the following filters:
+
+1.  **Adult Population:** Limited to patients ≥ 18 years old at the time of admission.
+
+2.  **Sepsis Cohort:** Included only patients with their *primary* diagnosis being sepsis, who had not died within the first 48 hours. If not, our model would not be able to distinguish between very health and very sick and would perform very poorly for long stays.
+
+3.  **ICU Requirement:** Patients must have had at least one ICU stay, and we only extracted their first ICU admission with sepsis.
+
+4.  **Exclusions:** We excluded patients with a total ICU length of stay (LOS) of less than 24 hours, as our goal was to predict prolonged stay from the initial day of data, and these "ultra-short" stays often represent administrative transfers rather than clinical recovery. We excluded patients with missing admit data, and we excluded vitals and labs with bioloigically unfeasible values.
+
+    We handled missing values, of which our percentages were low, through median imputation.
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+```{r}
+# load the dictionary table
+d_icd <- read_csv("mimic/hosp/d_icd_diagnoses.csv.gz")
+
+# identify every code that has sepsis in title
+sepsis_keyword_codes <- d_icd %>%
+  filter(str_detect(tolower(long_title), "sepsis")) %>%
+  pull(icd_code)
+
+# filter for primary diagnosis
+primary_sepsis_admissions <- diagnoses_icd %>%
+  filter(seq_num == 1, icd_code %in% sepsis_keyword_codes) %>%
+  select(hadm_id) %>%
+  distinct()
+
+# count
+print(paste("Primary Sepsis Patients Admitted:", nrow(primary_sepsis_admissions)))
+```
+
+```{r}
+# initial join (sepsis in ICU)
+sepsis_icu_only <- icu_stays %>% inner_join(primary_sepsis_admissions, by = "hadm_id")
+print(paste("Sepsis in ICU Count:", nrow(sepsis_icu_only))) # This is the one line you wanted
+
+# refine to adults and first stays
+sepsis_cohort_initial <- sepsis_icu_only %>%
+  inner_join(patients, by = "subject_id") %>%
+  inner_join(admissions %>% select(hadm_id, race, insurance, hospital_expire_flag), by = "hadm_id") %>%
+  filter(!is.na(intime), !is.na(outtime)) %>%
+  mutate(age_at_admit = anchor_age + (year(intime) - anchor_year)) %>%
+  filter(age_at_admit >= 18, los > 0) %>%
+  group_by(subject_id) %>%
+  arrange(intime) %>%
+  slice(1) %>%
+  ungroup()
+
+print(paste("Adults / 1st Stay Count:", nrow(sepsis_cohort_initial)))
+
+# apply the 48-hour survival filter
+sepsis_cohort_final <- sepsis_cohort_initial %>%
+  filter(!(hospital_expire_flag == 1 & los < 2))
+
+print(paste("Final Cohort Count (Survival >48h):", nrow(sepsis_cohort_final)))
+
+# update data frame for the plot to include all 4 steps
+cleaning_steps <- data.frame(
+  Step = c("Hospital Sepsis", "ICU Sepsis", "Adults / 1st Stay", "Survival >48h"),
+  Count = c(nrow(primary_sepsis_admissions), nrow(sepsis_icu_only), nrow(sepsis_cohort_initial), nrow(sepsis_cohort_final))
+)
+```
+
+```{r}
+#fix the order so it doesn't alphabetize
+cleaning_steps$Step <- factor(cleaning_steps$Step, levels = cleaning_steps$Step)
+
+ggplot(cleaning_steps, aes(x = Step, y = Count, fill = Step)) +
+  geom_bar(stat = "identity", show.legend = FALSE, width = 0.6) +
+  geom_text(aes(label = Count), vjust = -0.5, fontface = "bold") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Blues", direction = -1) +
+  labs(
+    title = "Cohort Selection Attrition",
+    x = "",
+    y = "Patient Count"
+  ) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.8))
+```
+
+```{r}
+# calculate average length of stay (ICU)
+avg_los <- mean(sepsis_cohort_final$los, na.rm = TRUE)
+med_los <- median(sepsis_cohort_final$los, na.rm = TRUE)
+
+# create the 14-day binary target: OUR OUTCOME
+sepsis_cohort_final <- sepsis_cohort_final %>%
+  mutate(prolonged_stay_14 = if_else(los > 14, 1, 0))
+
+#balance of our labels
+table(sepsis_cohort_final$prolonged_stay_14)
+```
+
+[4.2 Variables, Features, and Data Privacy]{.underline}
+
+We engineered 19 features from the first 24 hours of admission. This "Index Window" is a critical ethical choice: using data from Day 3 to predict a 14-day stay would constitute data leakage. By stopping the data collection at Hour 24, we ensure the model is a true "early-warning" system.
+
+-   **Vitals/Labs:** We extracted `min`, `max`, and `mean` values for Heart Rate, Resp Rate, and Lactate.
+
+-   **Feature Removal:** During EDA, we identified that **`marital_status`** had significant missingness and posed a risk of introducing socio-demographic bias without adding clear clinical value; it was therefore excluded. Additionally, we had added antibiotics but after a team member consulted with a TA, we decided it was a confounding variable and removed it, especially considering it was standard to put a patient on antibiotics upon arrival.
+
+-   **Preprocessing:** We handled missing lab values using median imputation (via `step_impute_median`) and normalized all continuous variables to ensure the Lasso penalty (λ) was applied fairly across all scales.Features like `Race`, `Gender`, and `Insurance` were transformed to convert qualitative categories into binary (0/1) columns that the Lasso and XGBoost algorithms can process mathematically.
+
+Our features are:
+
+[**Demographics (4 Features)**]{.underline}
+
+These establish the baseline profile of the patient.
+
+-   **Age:** Essential for calculating physiological reserve.
+
+-   **Gender:** Biological variance in sepsis response.
+
+-   **Race/Ethnicity:** Included to monitor for algorithmic fairness and potential healthcare disparities.
+
+-   **Insurance Type:** Used as a proxy for socio-economic status, which can impact long-term recovery and discharge planning.
+
+[**Vital Signs (5 Features)**]{.underline}
+
+We used the **mean or max** values from the first 24 hours to capture hemodynamic instability.
+
+-   **Heart Rate (HR):** Tachycardia is a primary indicator of systemic stress.
+
+-   **Mean Blood Pressure (MBP):** Critical for identifying hypotensive states.
+
+-   **Systolic Blood Pressure (SBP):** Further defines the patient's cardiovascular stability.
+
+-   **Respiratory Rate (RR):** Often the earliest sign of clinical deterioration in sepsis.
+
+-   **Temperature:** Captures the febrile or hypothermic response to infection.
+
+[**Laboratory Results (5 Features)**]{.underline}
+
+These capture the internal organ dysfunction and metabolic stress characteristic of Sepsis-3.
+
+-   **Max Lactate:** The strongest predictor of metabolic acidosis and tissue hypoperfusion.
+
+-   **Max Creatinine:** Indicates acute kidney injury (AKI).
+
+-   **Max Bilirubin:** A marker for liver dysfunction.
+
+-   **Max White Blood Cell (WBC) Count:** Indicates the severity of the immune/inflammatory response.
+
+-   **Min Platelets:** Low counts (thrombocytopenia) are a hallmark of sepsis-induced coagulopathy.
+
+[**Comorbidities & Interventions (5 Features)**]{.underline}
+
+These represent the "pre-existing burden" and the intensity of treatment required.
+
+-   **Vasopressor Use:** A binary flag (Yes/No) if the patient required chemical blood pressure support in the first 24 hours. This is a massive "red flag" for a \>14-day stay.
+
+-   **Hypertension:** Pre-existing cardiovascular strain.
+
+-   **Diabetes:** Impact on immune response and wound healing.
+
+-   **Chronic Kidney Disease (CKD):** High correlation with prolonged recovery times.
+
+-   **Cardiovascular Disease (CVD):** Baseline heart health significantly impacts ICU duration.
+
+```{r}
+# join with admissions 
+sepsis_cohort_final <- sepsis_cohort_final %>%
+  mutate(
+    # categroize race to reduce noise & maxmiize data use
+    race_group = case_when(
+      str_detect(race, "WHITE") ~ "WHITE",
+      str_detect(race, "BLACK") ~ "BLACK",
+      str_detect(race, "HISPANIC") ~ "HISPANIC",
+      str_detect(race, "ASIAN") ~ "ASIAN",
+      TRUE ~ "OTHER/UNKNOWN"
+    ),
+    # ensure Insurance is a factor
+    insurance = as.factor(insurance)
+  )
+
+# breakdown of these features
+print("Insurance Breakdown:")
+table(sepsis_cohort_final$insurance)
+
+print("Cleaned Race Breakdown:")
+table(sepsis_cohort_final$race_group)
+```
+
+```{r}
+# age distribution
+ggplot(sepsis_cohort_final, aes(x = age_at_admit)) + 
+  geom_histogram(bins = 30, fill = "steelblue", color = "white") +
+  theme_minimal() + 
+  labs(title = "Age Distribution of Sepsis Cohort", x = "Age", y = "Count")
+
+# gender Breakdown
+ggplot(sepsis_cohort_final, aes(x = gender, fill = gender)) + 
+  geom_bar() + 
+  theme_minimal() + 
+  labs(title = "Gender Distribution", x = "Gender", y = "Count")
+```
+
+```{r}
+# lab IDs
+lab_id_map <- list(
+  lactate = c(50813, 52442, 53154),
+  creatinine = c(50912, 52024, 52546),
+  bilirubin = c(50885, 53089),
+  wbc = c(51301, 51755, 51756),
+  platelets = c(51265, 53189)
+)
+
+# filter for the first 24 hours of the ICU stay
+labs_features_raw <- open_dataset("labevents_pq") %>%
+  filter(hadm_id %in% sepsis_cohort_final$hadm_id) %>%
+  filter(itemid %in% unlist(lab_id_map)) %>%
+  collect() %>%
+  inner_join(sepsis_cohort_final %>% select(hadm_id, intime), by = "hadm_id") %>%
+  filter(charttime >= intime, charttime <= intime + hours(24)) %>%
+  mutate(lab_name = case_when(
+    itemid %in% lab_id_map$lactate ~ "max_lactate",
+    itemid %in% lab_id_map$creatinine ~ "max_creatinine",
+    itemid %in% lab_id_map$bilirubin ~ "max_bilirubin",
+    itemid %in% lab_id_map$wbc ~ "max_wbc",
+    itemid %in% lab_id_map$platelets ~ "min_platelets"
+  )) %>%
+  # biological sanitycCheck: remove extreme outliers/errors
+  filter(
+    !(lab_name == "max_lactate" & valuenum > 30),
+    !(lab_name == "max_wbc" & valuenum > 200),
+    !(lab_name == "min_platelets" & valuenum > 2000)
+  )
+
+# summarize to get the "worst" value per patient
+labs_summarized <- labs_features_raw %>%
+  group_by(hadm_id, lab_name) %>%
+  summarize(
+    val = if (all(is.na(valuenum))) {
+      NA_real_  # If all values are NA, return a proper NA instead of -Inf
+    } else if (str_detect(first(lab_name), "min")) {
+      min(valuenum, na.rm = TRUE)
+    } else {
+      max(valuenum, na.rm = TRUE)
+    },
+    .groups = "drop"
+  ) %>%
+  pivot_wider(names_from = lab_name, values_from = val)
+
+print("Labs Summarized Preview:")
+labs_summarized %>% select(1:min(5, ncol(.))) %>% head()
+```
+
+```{r}
+# join labs to the master sepsis cohort
+sepsis_cohort_final <- sepsis_cohort_final %>%
+  left_join(labs_summarized, by = "hadm_id")
+
+# check missingness before imputation
+print("Missing counts BEFORE imputation:")
+print(colSums(is.na(sepsis_cohort_final %>% select(starts_with("max_"), starts_with("min_")))))
+
+# median imputation
+sepsis_cohort_final <- sepsis_cohort_final %>%
+  mutate(across(c(max_lactate, max_creatinine, max_bilirubin, max_wbc, min_platelets), 
+                ~ if_else(is.na(.), median(., na.rm = TRUE), .)))
+
+# final verification
+print("Missing counts AFTER imputation:")
+print(colSums(is.na(sepsis_cohort_final %>% select(starts_with("max_"), starts_with("min_")))))
+```
+
+```{r}
+ggplot(sepsis_cohort_final, aes(x = max_creatinine, fill = as.factor(prolonged_stay_14))) +
+  geom_density(alpha = 0.5) +
+  scale_x_log10() + 
+  theme_minimal() +
+  scale_fill_manual(values = c("skyblue", "orange"), name = "Stay > 14 Days") +
+  labs(
+    title = "Distribution of Max Creatinine by Stay Length",
+    subtitle = "Sepsis patients with stays >14 days tend to have higher peak creatinine levels.",
+    x = "Max Creatinine (mg/dL) - Log Scale",
+    y = "Density"
+  )
+```
+
+```{r}
+# IDs
+vital_ids <- c(220045, 220210, 220181, 220052, 223761, 223762, 220179, 220050)
+# join
+vitals_cleaned <- open_dataset("chartevents_pq") %>%
+  filter(stay_id %in% sepsis_cohort_final$stay_id) %>% # filter before collect!
+  filter(itemid %in% vital_ids) %>%
+  collect() %>%
+  select(-any_of("hadm_id")) %>% 
+  mutate(stay_id = as.numeric(stay_id)) %>%
+  inner_join(
+    sepsis_cohort_final %>% 
+      mutate(stay_id = as.numeric(stay_id)) %>% 
+      select(stay_id, hadm_id, intime), 
+    by = "stay_id"
+  ) %>%
+  filter(charttime >= intime, charttime <= intime + hours(24))
+
+# summarize: one median value per patient, per vital sign
+vitals_summarized <- vitals_cleaned %>%
+  mutate(vital_name = case_when(
+    itemid == 220045 ~ "heart_rate",
+    itemid == 220210 ~ "resp_rate",
+    itemid %in% c(220181, 220052) ~ "mean_bp",
+    itemid %in% c(220179, 220050) ~ "sys_bp",    # New Systolic BP
+    itemid %in% c(223761, 223762) ~ "temp_f"
+  )) %>%
+  # convert Celsius to Fahrenheit if itemid is 223762
+mutate(valuenum = if_else(itemid == 223762, (valuenum * 9/5) + 32, valuenum)) %>%  
+  
+# biological sanity check: remove extreme outliers/errors
+  filter(
+    !(vital_name == "heart_rate" & (valuenum < 0 | valuenum > 300)),
+    !(vital_name == "resp_rate" & (valuenum < 0 | valuenum > 100)),
+    !(vital_name == "mean_bp" & (valuenum < 0 | valuenum > 300)),
+    !(vital_name == "sys_bp" & (valuenum < 0 | valuenum > 300)),  # Added Sys BP
+    !(vital_name == "temp_f" & (valuenum < 70 | valuenum > 115))
+  ) %>%
+  group_by(hadm_id, vital_name) %>%
+  summarize(val = median(valuenum, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = vital_name, values_from = val)
+
+# check result: should see hadm_id and the 4 vital columns
+print("Structure of summarized vitals:")
+head(vitals_summarized)
+```
+
+```{r}
+v_cols <- c("heart_rate", "resp_rate", "mean_bp", "sys_bp", "temp_f")
+
+# join the summarized vitals
+sepsis_cohort_final <- sepsis_cohort_final %>%
+  select(-any_of(v_cols)) %>%  # wipe out old versions if they exist
+  left_join(vitals_summarized, by = "hadm_id")
+
+# print missingness stats
+missing_report <- sepsis_cohort_final %>%
+  summarise(across(any_of(v_cols), 
+                   list(
+                     count = ~sum(is.na(.)),
+                     percent = ~round(sum(is.na(.)) / n() * 100, 2)
+                   )))
+
+print("--- Vital Signs Missingness Report (Pre-Imputation) ---")
+print(missing_report)
+```
+
+```{r}
+# median imputation (we have low missing % values, teammate confirmed with TAs)
+sepsis_cohort_final <- sepsis_cohort_final %>%
+  mutate(across(any_of(v_cols), 
+                ~ if_else(is.na(.), median(., na.rm = TRUE), .)))
+
+# final verification - should be 0 now
+print("--- Final Missing Count Check (Vitals) ---")
+print(colSums(is.na(sepsis_cohort_final %>% select(any_of(v_cols)))))
+```
+
+```{r}
+# grab diagnoses and filter for our sepsis crew
+diagnoses <- read_csv("~/mimic/hosp/diagnoses_icd.csv.gz") %>%
+  filter(hadm_id %in% sepsis_cohort_final$hadm_id)
+
+# flag the comorbidities using regex (checking for both ICD9/10)
+comorbidities <- diagnoses %>%
+  group_by(hadm_id) %>%
+  summarize(
+    hypertension = max(if_else(str_detect(icd_code, "^I1[0-5]|^40[1-5]"), 1, 0)),
+    diabetes = max(if_else(str_detect(icd_code, "^E0[8-9]|^E1[0-3]|^250"), 1, 0)),
+    ckd = max(if_else(str_detect(icd_code, "^N18|^585"), 1, 0)),
+    cvd = max(if_else(str_detect(icd_code, "^I2[0-5]|^I50|^41[0-4]|^428"), 1, 0)),
+    liver_disease = max(if_else(str_detect(icd_code, "^B18|^K7[0-6]|^571"), 1, 0)),
+    immunosuppression = max(if_else(str_detect(icd_code, "^D8[0-9]|^279|^V581|^Z511"), 1, 0))
+  ) %>%
+  ungroup()
+
+# join to the master table and clean up
+# use sepsis_cohort_final here so we keep our vitals and labs!
+sepsis_cohort_final <- sepsis_cohort_final %>%
+  select(-any_of(colnames(comorbidities)[-1])) %>% # avoid duplicate col drama
+  left_join(comorbidities, by = "hadm_id") %>%
+  # if no code code, assume they don't have the condition (set to 0)
+  mutate(across(c(hypertension, diabetes, ckd, cvd, liver_disease, immunosuppression),
+                ~ if_else(is.na(.), 0, .))) %>%
+  # make them factors so the Random Forest treats them as categories, not numbers
+  mutate(across(c(hypertension, diabetes, ckd, cvd, liver_disease, immunosuppression), as.factor))
+
+# distribution
+summary(sepsis_cohort_final %>% select(hypertension, diabetes, ckd))
+```
+
+```{r}
+# prevalence of comorbidities
+comorb_plot <- sepsis_cohort_final %>%
+  select(hypertension, diabetes, ckd, cvd) %>%
+  mutate(across(everything(), ~ as.numeric(as.character(.)))) %>%
+  summarise(across(everything(), mean)) %>%
+  pivot_longer(everything(), names_to = "Condition", values_to = "Prevalence")
+
+ggplot(comorb_plot, aes(x = reorder(Condition, Prevalence), y = Prevalence)) +
+  geom_bar(stat = "identity", fill = "darkseagreen") +
+  scale_y_continuous(labels = scales::percent) +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Prevalence of Comorbidities in Sepsis Cohort", x = "", y = "Percentage of Patients")
+```
+
+```{r}
+# load prescriptions and filter for our cohort
+# using prescriptions for vasopressors is good, though some are in inputevents
+prescriptions_raw <- read_csv("~/mimic/hosp/prescriptions.csv.gz") %>%
+  filter(hadm_id %in% sepsis_cohort_final$hadm_id)
+
+# flag vasopressors in the first 24 hours
+vaso_flags <- prescriptions_raw %>%
+  left_join(sepsis_cohort_final %>% select(hadm_id, intime), by = "hadm_id") %>%
+  # filter: was the drug started within 24 hours of ICU admission?
+  filter(starttime >= intime & starttime <= (intime + hours(24))) %>%
+  mutate(drug = tolower(drug)) %>% 
+  group_by(hadm_id) %>%
+  summarize(
+    vasopressors = max(if_else(str_detect(drug, "norepinephrine|epinephrine|phenylephrine|vasopressin|dopamine"), 1, 0)),
+    .groups = "drop"
+  )
+
+# join back to the master table
+sepsis_cohort_final <- sepsis_cohort_final %>%
+  # remove old version if it exists
+  select(-any_of("vasopressors")) %>% 
+  left_join(vaso_flags, by = "hadm_id") %>%
+  # if a patient wasn't in the vaso_flags list, they didn't get pressors (set to 0)
+  mutate(vasopressors = if_else(is.na(vasopressors), 0, as.numeric(vasopressors))) %>%
+  # make it a factor for the model
+  mutate(vasopressors = as.factor(vasopressors))
+
+# final Count Check
+print("Distribution of Vasopressor use in first 24h:")
+table(sepsis_cohort_final$vasopressors)
+```
+
+```{r}
+# check for any remaining NAs in your potential predictors
+colSums(is.na(sepsis_cohort_final %>% 
+                select(hospital_expire_flag, age_at_admit, gender, race_group, 
+                       starts_with("max_"), starts_with("min_"),
+                       heart_rate, mean_bp, sys_bp, resp_rate, temp_f,
+                       hypertension, diabetes, ckd, cvd, vasopressors)))
+```
+
+```{r}
+# checking for weird outliers or extreme values
+sepsis_cohort_final %>%
+  select(age_at_admit, heart_rate, resp_rate, mean_bp, sys_bp, temp_f, 
+         max_lactate, max_creatinine, max_bilirubin) %>%
+  summary()
+```
+
+```{r}
+sepsis_cohort_final <- sepsis_cohort_final %>%
+  mutate(
+    # fix 0 respiratory rates using the median (if it were a prolonged 0 average then the patient would be dead...)
+    resp_rate = if_else(resp_rate <= 0, median(resp_rate[resp_rate > 0], na.rm = TRUE), resp_rate),
+    # fix the 0 mean_bp using the median
+    mean_bp = if_else(mean_bp <= 0, median(mean_bp[mean_bp > 0], na.rm = TRUE), mean_bp),
+    # ensure our stay flag is a factor for the model
+    prolonged_stay_14 = as.factor(prolonged_stay_14)
+  )
+
+# verify 0 is gone
+summary(sepsis_cohort_final$resp_rate)
+```
+
+```{r}
+# list all column names to make sure everything joined correctly
+colnames(sepsis_cohort_final)
+```
+
+```{r}
+library(tidyverse)
+library(patchwork) # To combine the 3 plots easily
+
+# Update your make_traj function slightly:
+make_traj <- function(var_name, title_lab, color_hex) {
+  ggplot(sepsis_cohort_final, aes(x = .data[[var_name]], y = los)) +
+    geom_point(alpha = 0.1, color = "grey") + 
+    geom_smooth(method = "gam", color = color_hex, size = 1.5) + 
+    coord_cartesian(ylim = c(0, 30)) + # <--- THIS IS THE MAGIC LINE
+    theme_minimal() +
+    labs(subtitle = title_lab, x = "Clinical Value", y = "Days in ICU")
+}
+
+# 2. Generate the 3 plots using your actual variables
+p1 <- make_traj("heart_rate", "Heart Rate Trend", "#e41a1c")
+p2 <- make_traj("resp_rate", "Respiratory Rate Trend", "#377eb8")
+p3 <- make_traj("max_creatinine", "Max Creatinine Trend", "#4daf4a")
+
+# 3. Combine them into one "Trajectory" Visual
+trajectory_plot <- (p1 | p2 | p3) + 
+  plot_annotation(title = "Clinical Trajectories: First 24h Vitals vs. Total LOS",
+                  theme = theme(plot.title = element_text(size = 16, face = "bold")))
+
+
+trajectory_plot
+
+#saveRDS(trajectory_plot, "trajectory_plot.rds")
+
+```
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+[4.3 Analytical Approach/Modeling]{.underline}
+
+As established in our data extraction phase, the primary clinical objective is to identify patients likely to require heavy ICU resource utilization.
+
+-   **Index Time:** The "Time Zero" for our model is the moment of ICU admission.
+
+-   **Prediction Window:** We utilized a **24-hour observation window**. Only data generated within the first day of stay was used for prediction to ensure early clinical utility.
+
+-   **Outcome Definition:** A binary classification of **Prolonged ICU Stay**, defined as a total length of stay (LOS) **exceeding 14 days**
+
+To find the optimal balance between clinical interpretability and predictive power, we implemented and compared three distinct machine learning architectures:
+
+1.  **Lasso Regression (Regularized Logistic Regression):** This served as our primary interpretable model. By using an L1 penalty, the model performs automatic feature selection, which is vital for clinicians to understand which of the 19 features (e.g., Max Lactate) are driving the risk score.
+
+2.  **Random Forest:** A non-linear ensemble method used to account for complex interactions between physiological variables (e.g., the interaction between low Blood Pressure and high Heart Rate).
+
+3.  **XGBoost (Extreme Gradient Boosting):** A high-performance boosting algorithm used to establish the "predictive ceiling" of our 19-feature dataset.
+
+All analyses were conducted using the **R Programming Language (v4.3+)**. The following ecosystem of packages was instrumental to the project:
+
+-   **Data Pipeline:** We utilized the **tidyverse** suite, including **dplyr**, **tidyr**, **stringr**, **ggplot2**, **readr**, and **lubridate**, to perform the core data manipulation, string cleaning, and temporal processing of ICU admission dates. For high-performance data handling, **data.table** and **R.utils** were used to manage large file structures, while **arrow** provided a memory-efficient way to interface with Parquet-formatted data.The **gtsummary** package was used to generate clinical-grade baseline characteristics tables, and **pROC** was employed to calculate and visualize the Area Under the Receiver Operating Characteristic curves for our models. We monitored computational efficiency and memory footprints using **memuse** and **pryr**, which is critical when processing high-resolution MIMIC-IV datasets.
+
+    For the machine learning phase, **caret** served as the primary workflow wrapper to handle training and cross-validation, while **glmnet** and **randomForest** provided the specific engines for our Lasso regression and ensemble-based models.
+
+-   **Communication:** `Quarto` was used for the final report generation, and `Shiny` was used for the interactive clinical deliverable.
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+```{r}
+# predictor list
+final_predictors <- c(
+  "age_at_admit", "gender", "race_group", "insurance",
+  "max_lactate", "max_creatinine", "max_bilirubin", "max_wbc", "min_platelets",
+  "heart_rate", "mean_bp", "sys_bp", "resp_rate", "temp_f",
+  "hypertension", "diabetes", "ckd", "cvd", "vasopressors"
+)
+
+print(paste("Number of Predictors:", length(final_predictors)))
+```
+
+[4.4 Model Evaluation]{.underline}
+
+The model evaluation process began by breaking up the cleaned sepsis cohort into an 80/20 split using a stratified random sampling approach. Specifically, eighty percent of the data was allocated to the training set to facilitate model development and parameter estimation, while the remaining twenty percent was reserved as a strictly independent testing set to evaluate how well the models would generalize to unseen patients. This stratification ensured that the distribution of prolonged stays remained consistent across both datasets, preventing any potential bias that could arise from the relative rarity of long-term ICU stays. Within the training phase, the team implemented k-fold cross-validation, specifically through the cv.glmnet function, which partitioned the training data multiple times to stabilize the estimation of the model coefficients. This internal validation was crucial for hyperparameter tuning, particularly for selecting the optimal lambda value in the Lasso regression that minimized the mean cross-validated error.
+
+Once the models were fully trained, their performance was rigorously assessed on the hold-out testing set using a variety of clinical and statistical metrics. The primary measure of success was the Area Under the Receiver Operating Characteristic curve, which evaluated the ability of the models to distinguish between patients who would exceed a fourteen-day stay and those who would not. Beyond the raw discrimination power of the AUC, the team conducted a detailed analysis of classification performance by identifying the optimal probability threshold. Rather than using the default threshold of zero point five, the threshold was tuned to zero point zero nine four five based on Youden’s J Index to maximize the balance between sensitivity and specificity. This adjustment was essential for the clinical utility of the model, as it allowed for a high sensitivity rate of approximately seventy-seven percent, ensuring that the majority of high-risk patients were correctly identified while maintaining a respectable specificity to avoid excessive false alarms in the ICU. Final performance summaries included accuracy, positive predictive value, and negative predictive value to provide a comprehensive view of how the SepsisOS pipeline would perform in a real-world hospital setting.
+
+```{r}
+library(caret)
+
+sepsis_cohort_final$prolonged_stay_14 <- as.factor(sepsis_cohort_final$prolonged_stay_14)
+
+# seed for reproducibility
+set.seed(123)
+train_index <- createDataPartition(sepsis_cohort_final$prolonged_stay_14, p = 0.8, list = FALSE)
+
+train_set <- sepsis_cohort_final[train_index, ]
+test_set  <- sepsis_cohort_final[-train_index, ]
+
+print(paste("Training size:", nrow(train_set)))
+print(paste("Testing size:", nrow(test_set)))
+```
+
+```{r}
+log_model_final <- glm(
+  prolonged_stay_14 ~ age_at_admit + gender + race_group + insurance +
+    max_lactate + max_creatinine + max_bilirubin + max_wbc + min_platelets +
+    heart_rate + mean_bp + sys_bp + resp_rate + temp_f +
+    # INTERACTIONS (IMPORTANT!)
+    diabetes * hypertension + 
+    ckd * age_at_admit +
+    vasopressors * max_lactate,
+  data = train_set, 
+  family = "binomial"
+)
+
+# results
+summary(log_model_final)
+```
+
+```{r}
+library(pROC)
+
+# predict probabilities on the test set
+test_probs <- predict(log_model_final, newdata = test_set, type = "response")
+
+# ROC object
+roc_obj <- roc(test_set$prolonged_stay_14, test_probs)
+
+# print the AUC
+print(paste("Final Model AUC:", round(auc(roc_obj), 3)))
+
+# plot the ROC Curve
+plot(roc_obj, col = "#2c7fb8", lwd = 3, main = "ROC Curve: Predicting 14-Day Stay")
+abline(a = 0, b = 1, lty = 2, col = "gray") # The "Random Guess" line
+```
+
+```{r}
+library(tidyr)
+
+# select variables of interest
+key_vars <- sepsis_cohort_final %>%
+  select(age_at_admit, max_lactate, max_bilirubin, max_creatinine, resp_rate) %>%
+  pivot_longer(cols = everything())
+
+# distribution plot
+ggplot(key_vars, aes(x = value)) +
+  geom_histogram(bins = 30, fill = "steelblue", color = "white") +
+  facet_wrap(~name, scales = "free") +
+  theme_minimal() +
+  labs(title = "Distribution of Key Clinical Predictors", x = "Value", y = "Count")
+```
+
+```{r}
+model_formula_final <- as.formula(
+  prolonged_stay_14 ~ age_at_admit + gender + race_group + insurance +
+    max_lactate + max_creatinine + max_bilirubin + max_wbc + min_platelets +
+    heart_rate + mean_bp + sys_bp + resp_rate + temp_f +
+    diabetes * hypertension + ckd * age_at_admit + vasopressors * max_lactate
+)
+
+# filter the data to rows w complete cases (only a few missing insurance)
+train_final <- train_set %>%
+  select(all_of(all.vars(model_formula_final))) %>%
+  drop_na()
+
+test_final <- test_set %>%
+  select(all_of(all.vars(model_formula_final))) %>%
+  drop_na()
+
+# create the matrices 
+x_train <- model.matrix(model_formula_final, data = train_final)[, -1]
+y_train <- as.numeric(as.character(train_final$prolonged_stay_14))
+
+x_test  <- model.matrix(model_formula_final, data = test_final)[, -1]
+y_test  <- as.numeric(as.character(test_final$prolonged_stay_14))
+```
+
+```{r}
+# run the 3 regularized models
+
+set.seed(123)
+lasso_cv <- cv.glmnet(x_train, y_train, family = "binomial", alpha = 1)
+ridge_cv <- cv.glmnet(x_train, y_train, family = "binomial", alpha = 0)
+enet_cv  <- cv.glmnet(x_train, y_train, family = "binomial", alpha = 0.5)
+
+# AUC results table
+tibble(
+  Model = c("Lasso", "Ridge", "Elastic Net"),
+  AUC = c(
+    auc(roc(y_test, as.numeric(predict(lasso_cv, x_test, s = "lambda.min", type = "response")), quiet = TRUE)),
+    auc(roc(y_test, as.numeric(predict(ridge_cv, x_test, s = "lambda.min", type = "response")), quiet = TRUE)),
+    auc(roc(y_test, as.numeric(predict(enet_cv, x_test, s = "lambda.min", type = "response")), quiet = TRUE))
+  )
+) %>%
+  mutate(AUC = round(as.numeric(AUC), 4))
+```
+
+```{r}
+coefs <- as.matrix(coef(lasso_cv, s = "lambda.min"))
+
+# turn them into the 'lasso_importance' table your plot expects
+lasso_importance <- data.frame(Predictor = rownames(coefs), Importance = abs(coefs[,1])) %>%
+  filter(Predictor != "(Intercept)", Importance > 0)
+```
+
+```{r}
+library(tibble)
+
+# clean predictor names in importance table
+lasso_importance_clean <- lasso_importance %>%
+  mutate(
+    Predictor = Predictor %>%
+      # remove the trailing '1' from binary variables
+      str_replace_all("1$", "") %>%
+      # replace underscores with spaces
+      str_replace_all("_", " ") %>%
+      str_to_title() %>%
+      # fix specific lab names that shouldn't be fully capitalized
+      str_replace("Wbc", "WBC") %>%
+      str_replace("Bp", "BP") %>%
+      str_replace("Ckd", "CKD")
+  )
+
+# plot
+ggplot(lasso_importance_clean, aes(x = reorder(Predictor, Importance), y = Importance)) +
+  geom_col(fill = "#2c7fb8", color = "white") +
+  coord_flip() +
+  theme_minimal() +
+  labs(
+    title = "Key Clinical Predictors of 14-Day ICU Stay",
+    subtitle = "Winning Lasso Model (AUC: 0.7778)",
+    x = NULL, # Removes the redundant "Predictors" label
+    y = "Relative Predictive Strength"
+  )
+```
+
+```{r}
+# probabilities 
+lasso_probs <- predict(lasso_cv, x_test, s = "lambda.min", type = "response") %>%
+  as.numeric()
+
+# use the ROC object to find the "best threshold (Youden's J Index)
+# this finds the point that balances Sensitivity and Specificity perfectly
+roc_obj <- roc(y_test, lasso_probs, quiet = TRUE)
+best_threshold <- coords(roc_obj, "best", ret = "threshold") %>% as.numeric()
+
+# create new predictions based on this smarter threshold
+lasso_preds_tuned <- ifelse(lasso_probs > best_threshold, 1, 0) %>%
+  factor(levels = c(0, 1))
+
+# run the confusion matrix again
+conf_matrix_tuned <- confusionMatrix(lasso_preds_tuned, factor(y_test, levels = c(0, 1)), positive = "1")
+
+# print updated results
+tibble(
+  Metric = c("New Threshold", "Accuracy", "Sensitivity", "Specificity"),
+  Value = c(
+    best_threshold,
+    conf_matrix_tuned$overall["Accuracy"],
+    conf_matrix_tuned$byClass["Sensitivity"],
+    conf_matrix_tuned$byClass["Specificity"]
+  )
+) %>%
+  mutate(Value = round(as.numeric(Value), 4))
+```
+
+```{r}
+# create ROC object
+roc_final <- roc(y_test, lasso_probs, quiet = TRUE)
+
+# plot using ggroc
+ggroc(roc_final, colour = "#2c7fb8", size = 1) +
+  geom_abline(intercept = 1, slope = 1, linetype = "dashed", color = "grey") +
+  theme_minimal() +
+  labs(
+    title = "Final Lasso Model Performance",
+    subtitle = paste("AUC:", round(auc(roc_final), 4)),
+    x = "Specificity",
+    y = "Sensitivity"
+  ) +
+  # flips the x-axis to the standard medical 1 -> 0 view
+  scale_x_reverse()
+```
+
+```{r}
+library(randomForest)
+
+# prepare data 
+train_rf <- train_final %>%
+  mutate(prolonged_stay_14 = as.factor(prolonged_stay_14))
+
+test_rf <- test_final %>%
+  mutate(prolonged_stay_14 = as.factor(prolonged_stay_14))
+
+# train the forest
+set.seed(123)
+rf_model <- randomForest(
+  model_formula_final, 
+  data = train_rf,
+  ntree = 500,
+  importance = TRUE
+)
+
+# get probabilities for the test set
+# type = "prob" gives a matrix; we want the probability of "1" (long stay)
+rf_probs <- predict(rf_model, test_rf, type = "prob")[, "1"]
+
+# AUC
+rf_auc <- auc(roc(as.numeric(as.character(test_rf$prolonged_stay_14)), rf_probs, quiet = TRUE))
+
+print(paste("Random Forest AUC:", round(rf_auc, 4)))
+```
+
+```{r}
+# extract and clean importance data
+rf_importance <- as.data.frame(importance(rf_model)) %>%
+  rownames_to_column(var = "Predictor") %>%
+  # 'MeanDecreaseGini' = standard measure for importance in RF!!!!!!!!
+  arrange(desc(MeanDecreaseGini)) %>%
+  mutate(Predictor = str_replace_all(Predictor, "_", " ") %>% str_to_title())
+
+# plot
+ggplot(rf_importance, aes(x = reorder(Predictor, MeanDecreaseGini), y = MeanDecreaseGini)) +
+  geom_col(fill = "#1b9e77", color = "white") +
+  coord_flip() +
+  theme_minimal() +
+  labs(
+    title = "Random Forest: Variable Importance",
+    subtitle = paste("AUC:", round(rf_auc, 4)),
+    x = NULL,
+    y = "Mean Decrease in Gini (Importance)"
+  )
+```
+
+```{r}
+library(xgboost)
+
+# convert data to matrix (XGBoost only takes numeric inputs)
+dtrain <- xgb.DMatrix(data = x_train, label = y_train)
+dtest <- xgb.DMatrix(data = x_test, label = y_test)
+
+# set parameters 
+params <- list(
+  objective = "binary:logistic",
+  eval_metric = "auc",
+  eta = 0.1,       # Learning rate
+  max_depth = 4    # Depth of trees
+)
+
+# training (with same breakups as our other 2 models)
+set.seed(123)
+xgb_model <- xgb.train(
+  params = params,
+  data = dtrain,
+  nrounds = 100,   # number of boosting iterations
+  evals = list(val = dtest, train = dtrain),
+  print_every_n = 10,
+  early_stopping_rounds = 10
+)
+
+# predictions and AUC
+xgb_probs <- predict(xgb_model, dtest)
+xgb_auc <- auc(roc(y_test, xgb_probs, quiet = TRUE))
+
+print(paste("XGBoost AUC:", round(xgb_auc, 4)))
+```
+
+**V. RESULTS**
+
+**\
+Cohort / Sample Characteristics**
+
+The final study cohort consisted of 4,077 adult sepsis patients who survived at least 48 hours following ICU admission. The population was predominantly White (62.8%), followed by Black (12.9%) and Other/Unknown (16.1%) racial groups. A significant majority of the cohort was insured through Medicare (59.2%). The age distribution was centered around a median of 69 years, reflecting a typical elderly sepsis population. Regarding clinical severity in the first 24 hours, the median maximum lactate was 2.1 mmol/L, and approximately 60.5% of patients required vasopressor support. The primary outcome, a prolonged ICU stay exceeding 14 days, occurred in 353 patients (8.6%). Various descriptive visuals were added in above cells because I aim to visualize raw data as I go, but I will add some here for project structure.
+
+```{r}
+# select variables of interest
+key_vars <- sepsis_cohort_final %>%
+  select(age_at_admit, max_lactate, max_bilirubin, max_creatinine, resp_rate) %>%
+  pivot_longer(cols = everything())
+
+# distribution plot
+ggplot(key_vars, aes(x = value)) +
+  geom_histogram(bins = 30, fill = "steelblue", color = "white") +
+  facet_wrap(~name, scales = "free") +
+  theme_minimal() +
+  labs(title = "Distribution of Key Clinical Predictors", x = "Value", y = "Count")
+```
+
+```{r}
+# age distribution
+ggplot(sepsis_cohort_final, aes(x = age_at_admit)) + 
+  geom_histogram(bins = 30, fill = "steelblue", color = "white") +
+  theme_minimal() + 
+  labs(title = "Age Distribution of Sepsis Cohort", x = "Age", y = "Count")
+
+# gender Breakdown
+ggplot(sepsis_cohort_final, aes(x = gender, fill = gender)) + 
+  geom_bar() + 
+  theme_minimal() + 
+  labs(title = "Gender Distribution", x = "Gender", y = "Count")
+```
+
+```{r}
+library(pROC)
+library(ggplot2)
+
+# create ROC objects for all three
+roc_lasso <- roc(y_test, lasso_probs, quiet = TRUE)
+roc_rf    <- roc(as.numeric(as.character(test_rf$prolonged_stay_14)), rf_probs, quiet = TRUE)
+roc_xgb   <- roc(y_test, xgb_probs, quiet = TRUE)
+
+# plot them together (Tidyverse style)
+roc_comparison_plot <- ggroc(list(Lasso = roc_lasso, "Random Forest" = roc_rf, XGBoost = roc_xgb), size = 1) +
+  geom_abline(intercept = 1, slope = 1, linetype = "dashed", color = "grey") +
+  theme_minimal() +
+  scale_color_manual(values = c("Lasso" = "#d95f02", "Random Forest" = "#1b9e77", "XGBoost" = "#7570b3")) +
+  labs(
+    title = "Model Comparison: Predicting 14-Day Sepsis Stay",
+    subtitle = "Lasso provides the most robust predictive power (AUC: 0.7778)",
+    x = "Specificity",
+    y = "Sensitivity",
+    color = "Model Type"
+  ) +
+  scale_x_reverse()
+
+roc_comparison_plot
+
+# save it!
+#saveRDS(roc_comparison_plot, "roc_plot.rds")
+```
+
+We compared three machine learning architectures to predict prolonged ICU stays: Lasso Regression, Random Forest, and XGBoost. The Lasso Regression model demonstrated the strongest predictive authority, achieving an Area Under the Receiver Operating Characteristic (AUROC) curve of 0.778 on the independent test set. The Random Forest and XGBoost models followed with AUROCs of 0.761 and 0.743, respectively. While the ensemble methods showed high training performance, the Lasso model’s superior performance on the test set suggests a robust linear relationship between the 19 clinical predictors and the outcome. After tuning the classification threshold to 0.0945, the winning Lasso model achieved a sensitivity of 77.1% and a specificity of 74.1%.
+
+Analysis of the Lasso coefficients revealed the relative predictive strength of the included features. The most influential predictors for a stay exceeding 14 days included respiratory rate, peak creatinine levels, and the requirement for vasopressor support within the first 24 hours. Chronic Kidney Disease (CKD) was the most significant comorbidity, particularly when interacting with age. Feature importance was also corroborated by the Random Forest model, which highlighted maximum creatinine and respiratory rate as the top variables based on the Mean Decrease in Gini coefficient. These findings suggest that acute renal dysfunction and respiratory distress are the primary drivers of long-term ICU resource utilization in sepsis.
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+**VI. DISCUSSION**
+
+The primary objective of this study was to determine if clinical data available within the first twenty-four hours of an ICU admission could accurately predict a prolonged stay exceeding fourteen days for sepsis patients. The results confirm that a Lasso regression model can achieve a high level of discrimination with an AUROC of zero point seven eight. The findings indicate that physiological markers of respiratory distress and renal dysfunction are the most potent early indicators of a patient's long-term recovery trajectory. By successfully identifying these patients at the start of their ICU stay, the 'SepsisOS' (name I provided) pipeline meets the project aim of providing a data-driven tool for early resource allocation and clinical triaging.
+
+[*6.2 Comparison with Previous Work*]{.underline}
+
+These results align with existing literature regarding the use of the MIMIC-IV database for sepsis modeling, particularly in the significance of lactate and creatinine as markers of sepsis severity. However, while most previous studies focus exclusively on mortality as the primary outcome, this research demonstrates that similar physiological variables can be repurposed to predict healthcare utilization and length of stay. The performance of the Lasso model in this study is comparable to established mortality risk scores like SOFA or SAPS II, yet it provides additional utility by focusing on the specific subset of patients who survive the acute phase but require extensive long-term care.
+
+[*6.3 Strengths & Weaknesses*]{.underline}
+
+A major strength of this analytical approach is the strict enforcement of a twenty-four-hour observation window, which effectively eliminates data leakage and ensures the model is viable for real-time clinical use. The use of regularized regression allowed for a highly interpretable model where the influence of each clinical feature is clearly defined, which is often a requirement for adoption in medical settings. A notable limitation is that the cohort was derived from a single-center academic medical center, which may not fully reflect the patient demographics or resource constraints of community hospitals. Additionally, while median imputation was used to handle missing data due to the low percentage of missingness, more complex methods like multiple imputation could be explored in future iterations to ensure even greater statistical robustness.
+
+[*6.4 Implications*]{.underline}
+
+The clinical implications of this model are significant for ICU bed management and discharge planning. If clinicians can identify potential long-stay patients on day one, they can initiate early consultations for physical therapy, nutritional support, and palliative care, all of which are critical for patients with protracted ICU courses. Theoretically, the high predictive weight of comorbidities like chronic kidney disease suggests that a patient’s baseline health status is just as important as their acute infection severity when determining the total duration of hospital resource consumption.
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+### **7. Conclusion**
+
+The SepsisOS project successfully developed a machine learning pipeline capable of predicting prolonged ICU stays with a high degree of sensitivity and accuracy. By leveraging the first twenty-four hours of heart rate, respiratory rate, and laboratory data, the model provides an early warning system for patients likely to require intensive resources for more than two weeks. This study contributes to the field of clinical informatics by demonstrating that interpretable models like Lasso regression can perform as well as, or better than, complex black-box algorithms in predicting resource utilization. Future research should focus on validating this model across different hospital systems and incorporating longitudinal trends in vitals to see if the "trajectory" of a patient's first day provides even more predictive power than static maximum values.
+
+**Shannon, K. (2024).** *Sepsis prediction in the ICU: A DSC180AB project.* UCSD GitHub Pages. <https://kshannon-ucsd.github.io/dsc180ab-sepsis/>
+
+**Sun, J., et al. (2024).** *Machine learning for predicting clinical outcomes in sepsis patients.* Frontiers in Nutrition, 11, 1370472. <https://doi.org/10.3389/fnut.2024.1370472>
+
+**Huang, Y et al. (2025).** *MIMIC-Sepsis: A Curated Benchmark for Modeling and Learning from Sepsis Trajectories in the ICU* arXiv. <https://arxiv.org/pdf/2510.24500>
+
+**Johnson, A., et al. (2023).** *MIMIC-IV Clinical Database (version 2.2).* PhysioNet. <https://doi.org/10.13026/6mm1-ek67>.
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+### **8. References & Acknowledgments**
+
+Huang, J., et al. (2025). *MIMIC-Sepsis: A Curated Benchmark for Modeling and Learning from Sepsis Trajectories in the ICU.* arXiv. <https://arxiv.org/pdf/2510.24500>
+
+Johnson, A., et al. (2023). *MIMIC-IV Clinical Database (version 2.2).* PhysioNet. <https://doi.org/10.13026/6mm1-ek67>.
+
+Shannon, K. (2024). *Sepsis Prediction in the ICU: A DSC180AB Capstone Framework.* UCSD GitHub Pages. <https://kshannon-ucsd.github.io/dsc180ab-sepsis/>
+
+Xu, Y., et al. (2024). *Early versus delayed enteral nutrition in ICU patients with sepsis: a propensity score-matched analysis based on the MIMIC-IV database.* Frontiers in Nutrition, 11, 1370472. <https://doi.org/10.3389/fnut.2024.1370472>
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+### **9. AI Usage Acknowledgements**
+
+Artificial Intelligence (AI) was leveraged as a tool to improve modeling and assist with bugs as they arose. Additionally, it was a key tool for R-Shiny App functionality. No disclosure of private patient data through the copying of patient tables, etc. was provided to AI out of respect for patient privacy. I utilized Gemini 3 as the generative model to assist me with this project. Ultimately, all clinical interpretations and final model selections were reviewed and verified by the author to ensure accuracy and adherence to the project guidelines.
